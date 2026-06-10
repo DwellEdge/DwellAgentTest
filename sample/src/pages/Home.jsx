@@ -22,6 +22,7 @@ export default function Home() {
       setCitySuggestions([]);
       return;
     }
+    
 
     try {
       console.log("📍 Fetching cities for:", query);
