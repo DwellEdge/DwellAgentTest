@@ -21,6 +21,7 @@ export default function Home() {
       setCitySuggestions([]);
       return;
     }
+    
 
     try {
       const res = await axios.get(`${API_BASE}/api/location`, {
