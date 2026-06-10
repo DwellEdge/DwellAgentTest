@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-function Createaccount() {
+function LoginPage() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ firstName: '', lastName: '', mobile: '' })
+  const [mobile, setMobile] = useState('')
+  const [error, setError] = useState('')
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
-
-  const handleSubmit = () => {
-    if (!form.firstName || !form.lastName || !form.mobile) { alert('Please fill all fields'); return }
-    if (form.mobile.length !== 10) { alert('Enter a valid 10-digit mobile number'); return }
-    sessionStorage.setItem('userData', JSON.stringify(form))
-    navigate('/verify-otp')
+  const handleLogin = () => {
+    setError('')
+    if (!mobile) { setError('Please enter your mobile number'); return }
+    if (mobile.length !== 10) { setError('Enter a valid 10-digit mobile number'); return }
+    const stored = sessionStorage.getItem('userData')
+    if (!stored) { setError('No account found. Please create an account first.'); return }
+    const userData = JSON.parse(stored)
+    if (userData.mobile === mobile) { navigate('/home') }
+    else { setError('Mobile number not found. Please create an account.') }
   }
 
   return (
@@ -24,7 +27,7 @@ function Createaccount() {
         <div style={{ color: '#c2511f' }} className="text-xl font-extrabold tracking-wide cursor-pointer"
           onClick={() => navigate('/')}>DWELLAGENT</div>
 
-        {/* Back  */}
+        {/* Back */}
         <button onClick={() => navigate(-1)}
           style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #fdd9c8', color: '#c2511f' }}
           className="flex items-center gap-2 px-4 py-2 rounded-full shadow-md text-sm font-bold hover:shadow-lg transition">
@@ -39,17 +42,16 @@ function Createaccount() {
           {/* Left */}
           <div className="flex-1 hidden md:flex flex-col gap-6">
             <div style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg">🏘️</div>
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg">🔑</div>
             <h1 style={{ color: '#7c2d12' }} className="text-4xl font-extrabold leading-tight">
-              Find Your<br />Dream Home
+              Welcome<br />Back
             </h1>
             <p style={{ color: '#a8674a' }} className="text-base leading-relaxed">
-              Join thousands of users discovering premium properties across India.
+              Sign in to access your saved properties and continue your real estate journey.
             </p>
             {[
-              { icon: '🏘️', text: 'Browse thousands of listings' },
-              { icon: '📍', text: 'Search by city & area' },
-              { icon: '🤝', text: 'Connect with agents' },
+              { icon: '📞', text: 'Contact agents directly' },
+              { icon: '📊', text: 'Track your enquiries' },
             ].map((item, i) => (
               <div key={i} style={{ background: '#fff', border: '1px solid #fdd9c8' }}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl shadow-sm text-sm font-medium text-orange-900">
@@ -62,35 +64,32 @@ function Createaccount() {
           <div style={{ background: '#fff', border: '1px solid #fdd9c8' }}
             className="flex-1 rounded-3xl p-10 flex flex-col gap-5 shadow-lg">
             <div>
-              <h2 style={{ color: '#7c2d12' }} className="text-2xl font-extrabold">Create Account</h2>
-              <p style={{ color: '#a8674a' }} className="mt-1 text-sm">Fill in your details to get started</p>
+              <div style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow mb-3">🔑</div>
+              <h2 style={{ color: '#7c2d12' }} className="text-2xl font-extrabold">Login</h2>
+              <p style={{ color: '#a8674a' }} className="mt-1 text-sm">Enter your registered mobile number</p>
             </div>
+
             <div style={{ background: '#fdd9c8' }} className="w-full h-px" />
 
-            <div className="flex gap-3">
-              <input name="firstName" placeholder="First Name" value={form.firstName} onChange={handleChange}
-                style={{ borderColor: '#fdd9c8', color: '#7c2d12' }}
-                className="flex-1 border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300" />
-              <input name="lastName" placeholder="Last Name" value={form.lastName} onChange={handleChange}
-                style={{ borderColor: '#fdd9c8', color: '#7c2d12' }}
-                className="flex-1 border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300" />
-            </div>
-
-            <input name="mobile" placeholder="Mobile Number (10 digits)" value={form.mobile} onChange={handleChange}
-              maxLength={10}
-              style={{ borderColor: '#fdd9c8', color: '#7c2d12' }}
+            <input placeholder="Mobile Number (10 digits)" value={mobile}
+              onChange={(e) => { setError(''); setMobile(e.target.value.replace(/\D/g, '')) }}
+              maxLength={10} inputMode="numeric"
+              style={{ borderColor: error ? '#f87171' : '#fdd9c8', color: '#7c2d12' }}
               className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 w-full placeholder-orange-300" />
 
-            <button onClick={handleSubmit}
+            {error && <p style={{ color: '#ef4444' }} className="text-sm -mt-2">{error}</p>}
+
+            <button onClick={handleLogin}
               style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
               className="w-full text-white py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition">
-              Send OTP →
+              Login →
             </button>
 
             <p style={{ color: '#d4a090' }} className="text-xs text-center">
-              Already have an account?{' '}
+              Don't have an account?{' '}
               <span style={{ color: '#e8724a' }} className="cursor-pointer font-semibold"
-                onClick={() => navigate('/login')}>Login here</span>
+                onClick={() => navigate('/create-account')}>Create one here</span>
             </p>
           </div>
         </div>
@@ -101,4 +100,4 @@ function Createaccount() {
   )
 }
 
-export default Createaccount
+export default LoginPage
