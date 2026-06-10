@@ -1,123 +1,141 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 export default function Home() {
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
-  const [locations, setLocations] = useState([]);
   const [citySuggestions, setCitySuggestions] = useState([]);
+  const [areaSuggestions, setAreaSuggestions] = useState([]);
   const [selectedCity, setSelectedCity] = useState("");
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
+  const [loadingAreas, setLoadingAreas] = useState(false);
 
-  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5002";
 
-  const getLocationLabel = (displayName) => displayName || "";
-
+  // Fetch cities
   const fetchCities = async (searchValue) => {
     const query = searchValue?.trim();
-    if (!query || query.length < 2) {
+    
+    if (!query || query.length < 1) {
       setCitySuggestions([]);
       return;
     }
 
     try {
+      console.log("📍 Fetching cities for:", query);
       const res = await axios.get(`${API_BASE}/api/location`, {
-        params: { q: `${query} India` }
+        params: { q: query },
+        timeout: 10000
       });
-      const uniqueCities = new Map();
-      (res.data || []).forEach((loc) => {
-        const cityName = loc.display_name?.split(",").slice(-3, -1).join(",").trim() || loc.display_name;
-        if (cityName && !uniqueCities.has(cityName)) {
-          uniqueCities.set(cityName, { display_name: cityName, place_id: loc.place_id });
-        }
-      });
-      setCitySuggestions(Array.from(uniqueCities.values()).slice(0, 8));
+      console.log("✓ Cities found:", res.data);
+      setCitySuggestions(res.data || []);
     } catch (err) {
-      console.log(err);
+      console.error("❌ Error fetching cities:", err.message);
       setCitySuggestions([]);
     }
   };
 
-  const fetchAreas = async (areaValue, cityValue) => {
-    const areaQuery = areaValue?.trim();
-    const cityQuery = cityValue?.trim();
-    const searchQuery = [areaQuery, cityQuery, "India"].filter(Boolean).join(" ");
-
-    if (!areaQuery || areaQuery.length < 2) {
-      setLocations([]);
+  // Fetch areas for selected city
+  const fetchAreas = async (cityValue) => {
+    if (!cityValue || cityValue.length < 1) {
+      console.log("No city value to fetch areas");
+      setAreaSuggestions([]);
+      setLoadingAreas(false);
       return;
     }
 
+    setLoadingAreas(true);
+
     try {
-      const res = await axios.get(`${API_BASE}/api/location`, {
-        params: { q: searchQuery }
+      console.log("🌍 Fetching areas for city:", cityValue);
+      const res = await axios.get(`${API_BASE}/api/areas`, {
+        params: { city: cityValue },
+        timeout: 15000
       });
-      setLocations(res.data || []);
+      console.log("✓ Areas found:", res.data);
+      setAreaSuggestions(res.data || []);
     } catch (err) {
-      console.log(err);
-      setLocations([]);
+      console.error("❌ Error fetching areas:", err.message);
+      setAreaSuggestions([]);
+    } finally {
+      setLoadingAreas(false);
     }
   };
 
-  const fetchCustomers = async (areaValue, cityValue) => {
+  // When selectedCity changes, fetch areas automatically
+  useEffect(() => {
+    console.log("useEffect triggered - selectedCity:", selectedCity);
+    if (selectedCity) {
+      console.log("Calling fetchAreas from useEffect");
+      fetchAreas(selectedCity);
+    }
+  }, [selectedCity]);
+
+  const fetchCustomers = async () => {
+    if (!selectedCity || !area) {
+      alert("Please select both city and area");
+      return;
+    }
+
     try {
       setLoading(true);
       setSearchPerformed(true);
-      console.log("Fetching customers - City:", cityValue, "Area:", areaValue);
+      console.log("👥 Searching for customers - City:", selectedCity, "Area:", area);
 
       const res = await axios.get(`${API_BASE}/api/customers`, {
-        params: { city: cityValue, area: areaValue }
+        params: { city: selectedCity, area: area },
+        timeout: 5000
       });
 
-      console.log("API Response:", res.data);
+      console.log("✓ Customers found:", res.data);
       setCustomers(res.data || []);
-      setLoading(false);
     } catch (err) {
-      console.error("Error fetching customers:", err);
+      console.error("❌ Error fetching customers:", err.message);
       setCustomers([]);
+    } finally {
       setLoading(false);
     }
   };
 
   const handleCityChange = (val) => {
+    console.log("🔤 City input changed:", val);
     setCity(val);
-    fetchCities(val);
+    setSelectedCity(""); // Reset selected city
+    setArea(""); // Reset area
+    setAreaSuggestions([]);
+    
+    if (val.length > 0) {
+      fetchCities(val);
+    } else {
+      setCitySuggestions([]);
+    }
   };
 
   const handleCitySelect = (cityName) => {
+    console.log("✅ City selected:", cityName);
     setCity(cityName);
-    setSelectedCity(cityName);
+    setSelectedCity(cityName); // This will trigger useEffect
     setCitySuggestions([]);
+    setArea("");
   };
 
   const handleAreaChange = (val) => {
+    console.log("🔤 Area input changed:", val);
     setArea(val);
-    fetchAreas(val, selectedCity || city);
   };
 
-  const handleAreaSelect = (fullAddress) => {
-    setArea(fullAddress);
-    setLocations([]);
+  const handleAreaSelect = (areaName) => {
+    console.log("✅ Area selected:", areaName);
+    setArea(areaName);
+    setAreaSuggestions([]);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    const cityName = (selectedCity || city)
-      .split(",")[0]
-      .trim();
-
-    const areaName = area
-      .split(",")[0]
-      .trim();
-
-    console.log("Searching:");
-    console.log("City:", cityName);
-    console.log("Area:", areaName);
-
-    fetchCustomers(areaName, cityName);
+    console.log("🔍 Form submitted - City:", selectedCity, "Area:", area);
+    fetchCustomers();
   };
 
   return (
@@ -136,52 +154,62 @@ export default function Home() {
 
       <main className="flex flex-col items-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="w-full max-w-5xl">
-          <form
-            onSubmit={handleSubmit}
-            className="flex flex-col gap-3"
-          >
-            <div className="relative">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            {/* City Input */}
+            <div className="relative w-full">
               <div className="flex items-center gap-3 rounded-full bg-white p-2 shadow-lg shadow-slate-200/70 ring-1 ring-slate-200">
                 <input
                   className="h-14 min-w-[160px] flex-1 rounded-full border border-sky-500 bg-white px-5 text-sm font-medium text-slate-900 outline-none transition focus:border-sky-600"
                   type="text"
-                  placeholder="City"
+                  placeholder="Search City (e.g. Bengaluru, Hyderabad)"
                   value={city}
                   onChange={(e) => handleCityChange(e.target.value)}
-                  aria-label="Search city"
+                  autoComplete="off"
                 />
               </div>
 
+              {/* City Dropdown */}
               {citySuggestions.length > 0 && (
-                <div className="absolute top-full left-0 mt-2 max-w-xs rounded-2xl bg-white shadow-lg border border-slate-200 z-10">
-                  {citySuggestions.map((loc, i) => (
-                    <div
-                      key={loc.place_id || i}
-                      onClick={() => handleCitySelect(loc.display_name)}
-                      className="px-4 py-3 text-sm cursor-pointer hover:bg-slate-100 border-b last:border-b-0 text-slate-900"
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-lg border border-slate-200 z-50">
+                  {citySuggestions.map((item, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleCitySelect(item.display_name)}
+                      className="w-full px-4 py-3 text-left text-sm hover:bg-slate-100 border-b last:border-b-0 text-slate-900 transition"
                     >
-                      {loc.display_name}
-                    </div>
+                      {item.display_name}
+                    </button>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="relative">
+            {/* Area Input */}
+            <div className="relative w-full">
               <div className="flex items-center gap-3 rounded-full bg-white p-2 shadow-lg shadow-slate-200/70 ring-1 ring-slate-200">
                 <input
-                  className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                  className={`flex-1 rounded-full border px-5 py-4 text-sm outline-none transition ${
+                    !selectedCity
+                      ? "border-slate-300 bg-slate-100 text-slate-400 cursor-not-allowed"
+                      : "border-slate-200 bg-white text-slate-900 focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                  }`}
                   type="text"
-                  placeholder="Area"
+                  placeholder={selectedCity ? "Type to search area..." : "Area"}
                   value={area}
                   onChange={(e) => handleAreaChange(e.target.value)}
-                  aria-label="Search area"
+                  disabled={!selectedCity}
+                  autoComplete="off"
                 />
 
                 <button
                   type="submit"
-                  className="flex h-14 w-14 items-center justify-center rounded-full bg-sky-600 text-white shadow-lg shadow-sky-500/20 transition hover:bg-sky-700"
-                  aria-label="Search"
+                  disabled={!selectedCity || !area || loading}
+                  className={`flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition ${
+                    !selectedCity || !area || loading
+                      ? "bg-slate-400 cursor-not-allowed"
+                      : "bg-sky-600 hover:bg-sky-700"
+                  }`}
                 >
                   <svg
                     width="18"
@@ -208,43 +236,55 @@ export default function Home() {
                 </button>
               </div>
 
-              {locations.length > 0 && (
-                <div className="absolute top-full left-0 mt-2 w-full rounded-2xl bg-white shadow-lg border border-slate-200 z-10 max-h-64 overflow-y-auto">
-                  {locations.map((loc, i) => (
-                    <div
-                      key={loc.place_id || i}
-                      onClick={() => handleAreaSelect(loc.display_name, loc.area)}
-                      className="px-4 py-3 text-sm cursor-pointer hover:bg-slate-100 border-b last:border-b-0 text-slate-900"
+              {/* Area Dropdown - Only show when areas are loaded AND area field is selected */}
+              {areaSuggestions.length > 0 && selectedCity && !area && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-lg border border-slate-200 z-50 max-h-64 overflow-y-auto">
+                  <div className="p-2 text-xs text-slate-500 border-b">
+                    {areaSuggestions.length} areas found
+                  </div>
+                  {areaSuggestions.map((areaName, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleAreaSelect(areaName)}
+                      className="w-full px-4 py-3 text-left text-sm hover:bg-sky-50 border-b last:border-b-0 text-slate-900 transition"
                     >
-                      {loc.display_name}
-                    </div>
+                      {areaName}
+                    </button>
                   ))}
                 </div>
               )}
             </div>
           </form>
 
+          {/* City & Area Tags */}
           <div className="mt-4 flex flex-wrap gap-3">
             <span className="rounded-full bg-sky-100 px-4 py-2 text-sm font-medium text-sky-700 ring-1 ring-sky-200">
-              City: {city ? city.split(",")[0].trim() : "Type a city"}
+              City: {selectedCity || "Not selected"}
             </span>
             <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200">
-              Area: {area ? area.split(",")[0].trim() : "Type an area"}
+              Area: {area || "Not selected"}
             </span>
           </div>
 
+          {/* Loading */}
           {loading && (
             <div className="mt-6 flex justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
             </div>
           )}
 
+          {/* No Results */}
           {searchPerformed && !loading && customers.length === 0 && (
             <div className="mt-6 rounded-[32px] bg-red-50 border border-red-200 p-6 text-center">
-              <p className="text-red-700 font-medium">No records found for City: <span className="font-semibold">{city ? city.split(",")[0].trim() : ""}</span> and Area: <span className="font-semibold">{area ? area.split(",")[0].trim() : ""}</span></p>
+              <p className="text-red-700 font-medium">
+                No records found for City: <span className="font-semibold">{selectedCity}</span> and Area:{" "}
+                <span className="font-semibold">{area}</span>
+              </p>
             </div>
           )}
 
+          {/* Results */}
           {customers.length > 0 && (
             <div className="mt-6 overflow-hidden rounded-[32px] bg-slate-950 text-slate-100 shadow-2xl shadow-slate-900/40 ring-1 ring-white/10">
               <div className="border-b border-white/10 px-6 py-4 text-sm font-semibold">
@@ -254,16 +294,18 @@ export default function Home() {
                 {customers.map((record, i) => (
                   <div key={i} className="px-6 py-4 text-sm">
                     <div className="flex items-center justify-between">
-                      <div className="font-medium">{record.firstName} {record.lastName}</div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${record.type === 'Agent'
-                          ? 'bg-sky-600 text-white'
-                          : 'bg-slate-600 text-slate-100'
-                        }`}>
-                        {record.type || 'Customer'}
-                      </span>
+                      <div>
+                        <div className="font-medium">
+                          {record.firstName} {record.lastName}
+                        </div>
+                        <div className="text-slate-300 text-xs mt-1">
+                          {record.address}
+                        </div>
+                      </div>
+                      <button className="ml-4 rounded-full bg-sky-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-sky-700">
+                        Get details
+                      </button>
                     </div>
-                    <div className="text-slate-300 text-xs mt-1">{record.mobileNumber}</div>
-                    <div className="text-slate-300 text-xs mt-1">{record.address}</div>
                   </div>
                 ))}
               </div>
