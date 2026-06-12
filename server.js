@@ -8,6 +8,7 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
+const twilio= require("twilio");
 
 const app = express();
 
@@ -473,6 +474,46 @@ console.log("AFTER PAYMENT ROUTE");
 
 console.log("REGISTERING PAYMENT ROUTE");
 console.log("REGISTERING TEST ROUTE");
+
+
+// twilio 
+
+
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+app.post("/api/send-message", async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone || phone.length !== 10 || isNaN(phone)) {
+    return res.status(400).json({ success: false, error: "Invalid phone number" });
+  }
+
+  try {
+    // Send SMS
+    await client.messages.create({
+      body: "Thank you for contacting DwellAgent! Our agent will reach out to you shortly. 🏠",
+      from: process.env.TWILIO_PHONE,
+      to: `+91${phone}`,
+    });
+
+    // Send WhatsApp
+    await client.messages.create({
+      body: "Thank you for contacting DwellAgent! Our agent will reach out to you shortly. 🏠",
+      from: "whatsapp:+14155238886",
+      to: `whatsapp:+91${phone}`,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Twilio error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
 
 app.listen(PORT, () => {
   console.log(`Server Running on port ${PORT}`);
