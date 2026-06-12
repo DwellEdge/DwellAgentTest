@@ -36,7 +36,7 @@ function Welcome() {
             Discover thousands of properties across India. Connect with trusted agents and find your dream home today.
           </p>
           <div className="flex gap-3 mt-2">
-            <button onClick={() => navigate('/signup-choice')}
+            <button onClick={() => navigate('/home')}
               style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
               className="px-8 py-3 rounded-xl text-white font-bold shadow-lg hover:opacity-90 transition text-sm">
               Get Started →

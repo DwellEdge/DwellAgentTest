@@ -5,6 +5,7 @@ import Createaccount from './pages/Createaccount'
 import OTPVerify from './pages/OTPVerify'
 import Welcome from './pages/Welcome'
 import Loginpage from './pages/Loginpage'
+import Payment from "./pages/Payment";
 import PhoneForm from './pages/PhoneForm'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
       <Route path="/verify-otp" element={<OTPVerify />} />
       <Route path="/" element={<Welcome />} />
       <Route path="/login" element={<Loginpage/>}/>
+      <Route path="/payment" element={<Payment />} />
       <Route path="/phoneform" element={<PhoneForm/>}/>
     </Routes>
   )
