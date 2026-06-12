@@ -1,3 +1,8 @@
+console.log("=================================");
+console.log("THIS IS MY CURRENT SERVER FILE");
+console.log(__filename);
+console.log("=================================");
+
 const express = require("express");
 const axios = require("axios");
 const mongoose = require("mongoose");
@@ -6,8 +11,15 @@ require("dotenv").config();
 
 const app = express();
 
+const PORT = process.env.PORT || 5002;
+
 app.use(cors());
 app.use(express.json());
+
+app.get("/api/test-payment", (req, res) => {
+  console.log("TEST PAYMENT HIT");
+  res.send("PAYMENT ROUTE EXISTS");
+});
 
 app.get("/vijaytest", (req, res) => {
   res.send("VIJAY TEST ROUTE");
@@ -33,12 +45,20 @@ mongoose
 
 // Define Customer Schema
 const customerSchema = new mongoose.Schema({
+  Id: Number,
+
   firstName: String,
   lastName: String,
   city: String,
   area: String,
   address: String,
+
   mobileNumber: String,
+
+  createdDateAndTime: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 // Define Agent Schema
@@ -49,6 +69,7 @@ const agentSchema = new mongoose.Schema({
   area: String,
   address: String,
   mobileNumber: String,
+  propertyCount: Number,
 });
 
 const Customer = mongoose.model("Customer", customerSchema, "Customers");
@@ -307,7 +328,25 @@ app.get("/test123", (req, res) => {
 // Add Agent
 app.post("/api/agents", async (req, res) => {
   try {
-    const agent = new Agent(req.body);
+    const {
+      firstName,
+      lastName,
+      city,
+      area,
+      address,
+      mobileNumber,
+      propertyCount,
+    } = req.body;
+
+    const agent = new Agent({
+      firstName,
+      lastName,
+      city,
+      area,
+      address,
+      mobileNumber,
+      propertyCount,
+    });
 
     await agent.save();
 
@@ -355,7 +394,85 @@ console.log("/api/areas");
 console.log("/api/customers");
 console.log("Routes registered successfully");
 
-const PORT = process.env.PORT || 5002;
+
+app.get("/api/agents", async (req, res) => {
+  try {
+    const city = req.query.city?.trim();
+    const area = req.query.area?.trim();
+
+    const query = {};
+
+    if (city) {
+      query.city = {
+        $regex: `^${city}$`,
+        $options: "i",
+      };
+    }
+
+    if (area) {
+      query.area = {
+        $regex: `^${area}$`,
+        $options: "i",
+      };
+    }
+
+    const agents = await Agent.find(query).lean();
+
+    res.json(agents);
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
+
+
+console.log("PAYMENT ROUTE REGISTERED");
+console.log("BEFORE PAYMENT ROUTE");
+
+app.post("/api/payment-request", async (req, res) => {
+  console.log("PAYMENT REQUEST RECEIVED");
+
+  try {
+    const { mobileNumber } = req.body;
+
+    const lastCustomer = await Customer
+      .findOne()
+      .sort({ Id: -1 });
+
+    const nextId = lastCustomer
+      ? lastCustomer.Id + 1
+      : 1001;
+
+    const customer = new Customer({
+      Id: nextId,
+      mobileNumber,
+      createdDateAndTime: new Date(),
+    });
+
+    await customer.save();
+
+    res.status(201).json({
+      success: true,
+      customer,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+console.log("AFTER PAYMENT ROUTE");
+
+console.log("REGISTERING PAYMENT ROUTE");
+console.log("REGISTERING TEST ROUTE");
 
 app.listen(PORT, () => {
   console.log(`Server Running on port ${PORT}`);
