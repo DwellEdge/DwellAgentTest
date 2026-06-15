@@ -50,6 +50,20 @@ export default function Payment() {
     };
 
     return (
+        <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #fff7f3 0%, #ffe8dc 50%, #fff7f3 100%)' }}>
+
+      <nav style={{ background: 'rgba(255,255,255,0.8)', borderBottom: '1px solid #fdd9c8', backdropFilter: 'blur(10px)' }}
+        className="flex items-center justify-between px-8 py-4 shadow-sm">
+        <div style={{ color: '#c2511f' }} className="text-xl font-extrabold tracking-wide">DWELLAGENT</div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/agent')}
+            style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
+            className="px-5 py-2 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-90 transition">
+            Agent
+          </button>
+        </div>
+      </nav>
+       
         <div className="min-h-screen bg-slate-100 p-8">
             <div className="mx-auto max-w-4xl rounded-3xl bg-white shadow-lg p-8">
 
@@ -92,7 +106,17 @@ export default function Payment() {
 
                     <button
                         className="rounded-full bg-green-600 px-8 py-3 font-semibold text-white hover:bg-green-700"
-                        onClick={() => setShowMobilePopup(true)}
+                        onClick={() =>
+                            navigate("/phoneform", {
+                                state: {
+                                    agents,
+                                    city,
+                                    area,
+                                    customers,
+                                    selectedCustomers,
+                                },
+                            })
+                        }
                     >
                         Proceed To Pay
                     </button>
@@ -193,6 +217,7 @@ export default function Payment() {
                     </div>
                 </div>
             )}
+        </div>
         </div>
 
     );
