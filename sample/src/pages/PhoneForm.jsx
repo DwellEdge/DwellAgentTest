@@ -5,25 +5,54 @@ export default function PhoneForm() {
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState("");
+  const [name, setName] = useState("");
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const handleSubmit = async () => {
+
+    if (!name.trim()) {
+      setStatus("❌ Enter your name");
+      return;
+    }
+
     if (phone.length !== 10 || isNaN(phone)) {
       setStatus("❌ Enter a valid 10-digit number");
       return;
     }
+
     setStatus("Sending...");
+
     try {
-      const res = await fetch("http://localhost:5002/api/send-message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
-      });
+
+      const res = await fetch(
+        "http://localhost:5002/api/send-message",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+            phone,
+          }),
+        }
+      );
+
       const data = await res.json();
+
       if (data.success) {
-        setStatus("✅ Message sent successfully via SMS & WhatsApp!");
+
+        setShowSuccessPopup(true);
+
+        setName("");
+        setPhone("");
+
+        setStatus("");
+
       } else {
         setStatus("❌ Failed: " + data.error);
       }
+
     } catch (err) {
       setStatus("❌ Server error");
     }
@@ -86,6 +115,23 @@ export default function PhoneForm() {
                 Submit your number and we'll reach out via SMS & WhatsApp
               </p>
             </div>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setStatus("");
+              }}
+              placeholder="Enter Your Name"
+              className="border-2 rounded-xl px-4 py-3 text-sm
+               focus:outline-none focus:border-orange-300
+               bg-orange-50 w-full
+               placeholder-orange-300"
+              style={{
+                borderColor: "#fdd9c8",
+                color: "#7c2d12",
+              }}
+            />
 
             <div style={{ background: '#fdd9c8' }} className="w-full h-px" />
 
@@ -107,7 +153,7 @@ export default function PhoneForm() {
               <p style={{
                 color: status.startsWith("❌") ? '#ef4444'
                   : status === "Sending..." ? '#a8674a'
-                  : '#16a34a'
+                    : '#16a34a'
               }}
                 className="text-sm -mt-2 font-medium">
                 {status}
@@ -127,6 +173,41 @@ export default function PhoneForm() {
       </div>
 
       <p style={{ color: '#d4a090' }} className="text-sm text-center pb-6">© 2026 DwellAgent</p>
+
+
+      {
+        showSuccessPopup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+
+            <div className="bg-white rounded-3xl p-8 shadow-xl w-full max-w-md text-center">
+
+              <div className="text-6xl mb-4">
+                ✅
+              </div>
+
+              <h2 className="text-2xl font-bold text-green-600 mb-3">
+                Success
+              </h2>
+
+              <p className="text-gray-600 mb-6">
+                SMS and WhatsApp Message Sent to your mobile successfully.
+              </p>
+
+              <button
+                onClick={() => {
+                  setShowSuccessPopup(false);
+                  navigate("/");
+                }}
+                className="bg-green-600 text-white px-8 py-3 rounded-xl font-semibold"
+              >
+                OK
+              </button>
+
+            </div>
+
+          </div>
+        )
+      }
     </div>
   );
 }
