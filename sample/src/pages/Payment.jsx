@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import axios from "axios";
 
 export default function Payment() {
     const location = useLocation();
@@ -16,38 +15,6 @@ export default function Payment() {
 
     const [showMobilePopup, setShowMobilePopup] = useState(false);
     const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-    const [mobileNumber, setMobileNumber] = useState("");
-
-    const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5002";
-
-    const submitRequest = async () => {
-        try {
-            console.log("Submitting...");
-
-            const response = await axios.post(
-                `${API_BASE}/api/payment-request`,
-                { mobileNumber }
-            );
-
-            console.log(response.data);
-
-            setShowMobilePopup(false);
-
-            navigate("/phoneform", {
-                state: { agents }
-            });
-
-        } catch (error) {
-            console.error("FULL ERROR:", error);
-
-            if (error.response) {
-                console.log("Status:", error.response.status);
-                console.log("Data:", error.response.data);
-            }
-
-            alert("Failed to save request");
-        }
-    };
 
     return (
         <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #fff7f3 0%, #ffe8dc 50%, #fff7f3 100%)' }}>
@@ -83,37 +50,21 @@ export default function Payment() {
                                 key={agent._id}
                                 className="grid grid-cols-2 border-t px-6 py-4"
                             >
-                                <div>
-                                    {agent.firstName} {agent.lastName}
-                                </div>
-                                <div className="text-right">
-                                    ₹{amountPerAgent}
-                                </div>
+                                <div>{agent.firstName} {agent.lastName}</div>
+                                <div className="text-right">₹{amountPerAgent}</div>
                             </div>
                         ))}
 
                         <div className="grid grid-cols-2 border-t bg-slate-50 px-6 py-5 font-bold text-lg">
                             <div>Total Amount</div>
-                            <div className="text-right">
-                                ₹{totalAmount}
-                            </div>
+                            <div className="text-right">₹{totalAmount}</div>
                         </div>
                     </div>
 
                     <div className="mt-8 flex justify-center gap-4">
                         <button
                             className="rounded-full bg-green-600 px-8 py-3 font-semibold text-white hover:bg-green-700"
-                            onClick={() =>
-                                navigate("/phoneform", {
-                                    state: {
-                                        agents,
-                                        city,
-                                        area,
-                                        customers,
-                                        selectedCustomers,
-                                    },
-                                })
-                            }
+                            onClick={() => setShowMobilePopup(true)}
                         >
                             Proceed To Pay
                         </button>
@@ -122,12 +73,7 @@ export default function Payment() {
                             className="rounded-full bg-red-500 px-8 py-3 font-semibold text-white hover:bg-red-600"
                             onClick={() =>
                                 navigate("/home", {
-                                    state: {
-                                        city,
-                                        area,
-                                        customers,
-                                        selectedCustomers,
-                                    },
+                                    state: { city, area, customers, selectedCustomers },
                                 })
                             }
                         >
@@ -140,23 +86,29 @@ export default function Payment() {
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                         <div className="w-full max-w-md rounded-3xl bg-white p-8">
 
-                            <h2 className="mb-4 text-xl font-bold">
-                                Enter Mobile Number
-                            </h2>
+                            <h2 className="mb-4 text-xl font-bold">Confirm Payment</h2>
 
-                            <input
-                                type="text"
-                                value={mobileNumber}
-                                onChange={(e) => setMobileNumber(e.target.value)}
-                                placeholder="Enter Mobile Number"
-                                className="w-full rounded-xl border p-3"
-                            />
+                            <p className="text-slate-600 mb-6">
+                                Proceed to enter your details and receive agent contacts via SMS & WhatsApp.
+                            </p>
 
                             <button
-                                onClick={submitRequest}
-                                className="mt-4 w-full rounded-xl bg-sky-600 py-3 text-white"
+                                onClick={() => {
+                                    setShowMobilePopup(false);
+                                    navigate("/phoneform", {
+                                        state: { agents, city, area, customers, selectedCustomers },
+                                    });
+                                }}
+                                className="w-full rounded-xl bg-sky-600 py-3 text-white font-semibold"
                             >
-                                Submit
+                                Continue
+                            </button>
+
+                            <button
+                                onClick={() => setShowMobilePopup(false)}
+                                className="mt-2 w-full rounded-xl border py-3 text-gray-500 font-semibold"
+                            >
+                                Cancel
                             </button>
 
                         </div>
@@ -167,9 +119,7 @@ export default function Payment() {
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                         <div className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white p-8">
 
-                            <h2 className="mb-2 text-3xl font-bold text-green-600">
-                                Thank You!
-                            </h2>
+                            <h2 className="mb-2 text-3xl font-bold text-green-600">Thank You!</h2>
 
                             <p className="mb-6 text-slate-600">
                                 Your request has been submitted successfully💐💐.
@@ -177,13 +127,8 @@ export default function Payment() {
 
                             <div className="space-y-4">
                                 {agents.map((agent) => (
-                                    <div
-                                        key={agent._id}
-                                        className="rounded-2xl border p-4"
-                                    >
-                                        <div className="font-bold">
-                                            {agent.firstName} {agent.lastName}
-                                        </div>
+                                    <div key={agent._id} className="rounded-2xl border p-4">
+                                        <div className="font-bold">{agent.firstName} {agent.lastName}</div>
                                         <div>Mobile: {agent.mobileNumber}</div>
                                         <div>Address: {agent.address}</div>
                                         <div>Area: {agent.area}</div>
@@ -193,7 +138,7 @@ export default function Payment() {
 
                             <button
                                 onClick={() => navigate("/home")}
-                                className="mt-6 w-full rounded-xl bg-green-600 py-3 text-white"
+                                className="mt-6 w-full rounded-xl bg-green-600 py-3 text-white font-semibold"
                             >
                                 Close
                             </button>
