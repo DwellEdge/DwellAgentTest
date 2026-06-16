@@ -192,11 +192,6 @@ const [selectedCustomers, setSelectedCustomers] = useState([]);
         className="flex items-center justify-between px-8 py-4 shadow-sm">
         <div style={{ color: '#c2511f' }} className="text-xl font-extrabold tracking-wide">DWELLAGENT</div>
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/signup-choice')}
-            style={{ borderColor: '#e8724a', color: '#c2511f' }}
-            className="border-2 px-5 py-2 rounded-xl text-sm font-bold hover:bg-orange-50 transition">
-            Sign Up / Login
-          </button>
           <button onClick={() => navigate('/agent')}
             style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
             className="px-5 py-2 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-90 transition">
@@ -212,7 +207,7 @@ const [selectedCustomers, setSelectedCustomers] = useState([]);
             <div className="relative w-full">
               <div className="flex items-center gap-3 rounded-full bg-white p-2 shadow-lg shadow-slate-200/70 ring-1 ring-slate-200">
                 <input
-                  className="h-14 min-w-[160px] flex-1 rounded-full border border-sky-500 bg-white px-5 text-sm font-medium text-slate-900 outline-none transition focus:border-sky-600"
+                  className="h-14 min-w-160px flex-1 rounded-full border border-sky-500 bg-white px-5 text-sm font-medium text-slate-900 outline-none transition focus:border-sky-600"
                   type="text"
                   placeholder="Search City (e.g. Bengaluru, Hyderabad)"
                   value={city}
@@ -327,7 +322,7 @@ const [selectedCustomers, setSelectedCustomers] = useState([]);
 
           {/* No Results */}
           {searchPerformed && !loading && customers.length === 0 && (
-            <div className="mt-6 rounded-[32px] bg-red-50 border border-red-200 p-6 text-center">
+            <div className="mt-6 rounded-32px bg-red-50 border border-red-200 p-6 text-center">
               <p className="text-red-700 font-medium">
                 No records found for City:{" "}
                 <span className="font-semibold">
@@ -343,7 +338,7 @@ const [selectedCustomers, setSelectedCustomers] = useState([]);
 
           {/* Results */}
           {customers.length > 0 && (
-            <div className="mt-6 overflow-hidden rounded-[32px] bg-slate-950 text-slate-100 shadow-2xl shadow-slate-900/40 ring-1 ring-white/10">
+            <div className="mt-6 overflow-hidden rounded-32px bg-slate-950 text-slate-100 shadow-2xl shadow-slate-900/40 ring-1 ring-white/10">
               <div className="border-b border-white/10 px-6 py-4 text-sm font-semibold">
                 Results ({customers.length})
               </div>

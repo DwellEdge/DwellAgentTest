@@ -12,12 +12,10 @@ export default function Payment() {
     const navigate = useNavigate();
 
     const amountPerAgent = 30;
-
     const totalAmount = agents.length * amountPerAgent;
+
     const [showMobilePopup, setShowMobilePopup] = useState(false);
-
     const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-
     const [mobileNumber, setMobileNumber] = useState("");
 
     const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5002";
@@ -27,16 +25,18 @@ export default function Payment() {
             console.log("Submitting...");
 
             const response = await axios.post(
-                "http://localhost:5002/api/payment-request",
-                {
-                    mobileNumber,
-                }
+                `${API_BASE}/api/payment-request`,
+                { mobileNumber }
             );
 
             console.log(response.data);
 
             setShowMobilePopup(false);
-            setShowSuccessPopup(true);
+
+            navigate("/phoneform", {
+                state: { agents }
+            });
+
         } catch (error) {
             console.error("FULL ERROR:", error);
 
@@ -72,7 +72,6 @@ export default function Payment() {
                             <div>
                                 {agent.firstName} {agent.lastName}
                             </div>
-
                             <div className="text-right">
                                 ₹{amountPerAgent}
                             </div>
@@ -81,7 +80,6 @@ export default function Payment() {
 
                     <div className="grid grid-cols-2 border-t bg-slate-50 px-6 py-5 font-bold text-lg">
                         <div>Total Amount</div>
-
                         <div className="text-right">
                             ₹{totalAmount}
                         </div>
@@ -89,10 +87,9 @@ export default function Payment() {
                 </div>
 
                 <div className="mt-8 flex justify-center gap-4">
-
                     <button
                         className="rounded-full bg-green-600 px-8 py-3 font-semibold text-white hover:bg-green-700"
-                        onClick={() => setShowMobilePopup(true)}
+                        onClick={() => navigate("/phoneform",{state:{agents}})}
                     >
                         Proceed To Pay
                     </button>
@@ -112,10 +109,9 @@ export default function Payment() {
                     >
                         Cancel
                     </button>
-
                 </div>
-
             </div>
+
             {showMobilePopup && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                     <div className="w-full max-w-md rounded-3xl bg-white p-8">
@@ -145,7 +141,6 @@ export default function Payment() {
 
             {showSuccessPopup && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-
                     <div className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white p-8">
 
                         <h2 className="mb-2 text-3xl font-bold text-green-600">
@@ -157,7 +152,6 @@ export default function Payment() {
                         </p>
 
                         <div className="space-y-4">
-
                             {agents.map((agent) => (
                                 <div
                                     key={agent._id}
@@ -166,21 +160,11 @@ export default function Payment() {
                                     <div className="font-bold">
                                         {agent.firstName} {agent.lastName}
                                     </div>
-
-                                    <div>
-                                        Mobile: {agent.mobileNumber}
-                                    </div>
-
-                                    <div>
-                                        Address: {agent.address}
-                                    </div>
-
-                                    <div>
-                                        Area: {agent.area}
-                                    </div>
+                                    <div>Mobile: {agent.mobileNumber}</div>
+                                    <div>Address: {agent.address}</div>
+                                    <div>Area: {agent.area}</div>
                                 </div>
                             ))}
-
                         </div>
 
                         <button
@@ -189,11 +173,9 @@ export default function Payment() {
                         >
                             Close
                         </button>
-
                     </div>
                 </div>
             )}
         </div>
-
     );
 }
