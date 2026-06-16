@@ -25,14 +25,7 @@ export default function PhoneForm() {
     setStatus("Sending...");
 
     try {
-      // Save to DB
-      await fetch("http://localhost:5002/api/payment-request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobileNumber: phone, firstName: name }),
-      });
-
-      // Send WhatsApp & SMS
+      // Send WhatsApp & SMS + Save to DB
       const res = await fetch("http://localhost:5002/api/send-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
