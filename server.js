@@ -8,6 +8,7 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
+console.log("MONGO URL:", process.env.MONGO_URL);
 const twilio= require("twilio");
 
 const app = express();
@@ -33,15 +34,25 @@ app.get("/", (req, res) => {
 console.log("========== MY SERVER FILE LOADED ==========");
 console.log(__filename);
 
+
+const JWT_SECRET = process.env.JWT_SECRET || "secret123";
+
+/* ================= CHECK ENV ================= */
+if (!process.env.ATLAS_URI) {
+  console.error("❌ ATLAS_URI missing in .env file");
+  process.exit(1);
+}
+
+
 // MongoDB Connection
 mongoose
-  .connect(process.env.MONGO_URL)
+  .connect(process.env.ATLAS_URI)
   .then(() => {
-    console.log("✓ MongoDB Connected Successfully");
-    console.log("Database:", mongoose.connection.db.databaseName);
+    console.log("✅ MongoDB Connected");
   })
   .catch((err) => {
-    console.error("MongoDB Connection Error:", err.message);
+    console.log("❌ DB Connection Error:", err.message);
+    process.exit(1);
   });
 
 // Define Customer Schema
@@ -431,9 +442,10 @@ console.log("BEFORE PAYMENT ROUTE");
 
 app.post("/api/payment-request", async (req, res) => {
   console.log("PAYMENT REQUEST RECEIVED");
+  console.log("REQ BODY:", req.body);
 
   try {
-    const { mobileNumber } = req.body;
+    const { mobileNumber, firstName } = req.body;
 
     const lastCustomer = await Customer
       .findOne()
@@ -445,6 +457,7 @@ app.post("/api/payment-request", async (req, res) => {
 
     const customer = new Customer({
       Id: nextId,
+      firstName,
       mobileNumber,
       createdDateAndTime: new Date(),
     });
@@ -481,23 +494,32 @@ const client = twilio(
 );
 
 app.post("/api/send-message", async (req, res) => {
-  const { phone } = req.body;
+  const { phone, name, agents } = req.body;
 
   if (!phone || phone.length !== 10 || isNaN(phone)) {
     return res.status(400).json({ success: false, error: "Invalid phone number" });
   }
 
+  // Build agent details text
+  const agentDetails = agents && agents.length > 0
+    ? agents.map((agent, i) =>
+        `Agent ${i + 1}:\nName: ${agent.firstName} ${agent.lastName}\nCity: ${agent.city}\nArea: ${agent.area}\nAddress: ${agent.address}\nMobile: ${agent.mobileNumber}`
+      ).join("\n\n")
+    : "No agents selected";
+
+  const message = `Hi ${name}! 👋\n\nThank you for using DwellAgent! 🏠\n\nYour selected agents:\n\n${agentDetails}\n\nOur team will reach out to you shortly.`;
+
   try {
     // Send SMS
     await client.messages.create({
-      body: "Thank you for contacting DwellAgent! Our agent will reach out to you shortly. 🏠",
+      body: message,
       from: process.env.TWILIO_PHONE,
       to: `+91${phone}`,
     });
 
     // Send WhatsApp
     await client.messages.create({
-      body: "Thank you for contacting DwellAgent! Our agent will reach out to you shortly. 🏠",
+      body: message,
       from: "whatsapp:+14155238886",
       to: `whatsapp:+91${phone}`,
     });
