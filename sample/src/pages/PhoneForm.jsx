@@ -246,8 +246,8 @@ export default function PhoneForm() {
                   color: status.startsWith("❌")
                     ? "#ef4444"
                     : status === "Sending..."
-                    ? "#a8674a"
-                    : "#16a34a",
+                      ? "#a8674a"
+                      : "#16a34a",
                 }}
                 className="text-sm -mt-2 font-medium"
               >
@@ -277,22 +277,31 @@ export default function PhoneForm() {
       </p>
 
       {showSuccessPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-3xl p-8 shadow-xl w-full max-w-md text-center">
-            <div className="text-6xl mb-4">✅</div>
-            <h2 className="text-2xl font-bold text-green-600 mb-3">Success</h2>
-            <p className="text-gray-600 mb-6">
-              SMS and WhatsApp Message Sent to your mobile successfully.
+        <div className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(124, 45, 18, 0.3)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', border: '1px solid #fdd9c8' }}
+            className="rounded-3xl p-8 shadow-2xl w-full max-w-md text-center mx-4">
+
+            <div style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg mx-auto mb-4">
+              ✅
+            </div>
+
+            <h2 style={{ color: '#7c2d12' }} className="text-2xl font-extrabold mb-3">Success!</h2>
+
+            <p style={{ color: '#a8674a' }} className="text-sm mb-6 leading-relaxed">
+              SMS and WhatsApp message sent to your mobile successfully.
             </p>
+
+            <div style={{ background: '#fdd9c8' }} className="w-full h-px mb-6" />
+
             <button
-              onClick={() => {
-                setShowSuccessPopup(false);
-                navigate("/");
-              }}
-              className="bg-green-600 text-white px-8 py-3 rounded-xl font-semibold"
-            >
-              OK
+              onClick={() => { setShowSuccessPopup(false); navigate("/"); }}
+              style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
+              className="w-full text-white px-8 py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition">
+              OK →
             </button>
+
           </div>
         </div>
       )}
