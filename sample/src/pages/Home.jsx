@@ -31,7 +31,7 @@ const API_BASE =
       console.log("📍 Fetching cities for:", query);
       const res = await axios.get(`${API_BASE}/api/location`, {
         params: { q: query },
-        timeout: 10000
+        timeout: 30000
       });
       setCitySuggestions(res.data || []);
     } catch (err) {
