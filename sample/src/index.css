@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+body {
+  @apply bg-slate-100 text-slate-900 antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.location-select {
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
