@@ -17,8 +17,9 @@ export default function Home() {
   const [customers, setCustomers] = useState([]);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
 
-  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5002";
-
+const API_BASE =
+  import.meta.env.VITE_API_URL || "http://localhost:5002";
+  
   // Fetch cities
   const fetchCities = async (searchValue) => {
     const query = searchValue?.trim();

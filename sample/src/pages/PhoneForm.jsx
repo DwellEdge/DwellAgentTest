@@ -26,7 +26,10 @@ export default function PhoneForm() {
 
     try {
       // Send WhatsApp & SMS + Save to DB
-      const res = await fetch("http://localhost:5002/api/send-message", {
+      const API_BASE =
+        import.meta.env.VITE_API_URL || "http://localhost:5002";
+
+      const res = await fetch(`${API_BASE}/api/send-message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, name, agents }),
