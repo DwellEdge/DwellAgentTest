@@ -123,40 +123,6 @@ export default function PhoneForm() {
                 <span>{item.icon}</span> {item.text}
               </div>
             ))}
-
-            {/* Selected agents preview */}
-            {agents.length > 0 && (
-              <div
-                style={{ background: "#fff7f3", border: "1px solid #fdd9c8" }}
-                className="rounded-2xl p-4 mt-2"
-              >
-                <p
-                  style={{ color: "#c2511f" }}
-                  className="text-sm font-bold mb-3"
-                >
-                  📋 Selected Agents ({agents.length})
-                </p>
-                <div className="flex flex-col gap-2">
-                  {agents.map((agent) => (
-                    <div
-                      key={agent._id}
-                      style={{ borderLeft: "3px solid #e8724a" }}
-                      className="pl-3"
-                    >
-                      <p
-                        style={{ color: "#7c2d12" }}
-                        className="text-sm font-semibold"
-                      >
-                        {agent.firstName} {agent.lastName}
-                      </p>
-                      <p style={{ color: "#a8674a" }} className="text-xs">
-                        📍 {agent.area} &nbsp;|&nbsp; 📞 {agent.mobileNumber}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Right - Form */}
