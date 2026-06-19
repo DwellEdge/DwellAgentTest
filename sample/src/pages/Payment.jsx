@@ -23,8 +23,13 @@ export default function Payment() {
             {/* Navbar */}
             <nav style={{ background: 'rgba(255,255,255,0.8)', borderBottom: '1px solid #fdd9c8', backdropFilter: 'blur(10px)' }}
                 className="flex items-center justify-between px-8 py-4 shadow-sm">
-                <div style={{ color: '#c2511f' }} className="text-xl font-extrabold tracking-wide cursor-pointer"
-                    onClick={() => navigate('/')}>🏠 DwellAgent</div>
+                <div
+                    style={{ color: "#c2511f" }}
+                    className="text-xl font-extrabold tracking-wide cursor-pointer"
+                    onClick={() => navigate("/")}
+                >
+                    DWELLAGENT
+                </div>
                 <button onClick={() => navigate(-1)}
                     style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #fdd9c8', color: '#c2511f' }}
                     className="flex items-center gap-2 px-4 py-2 rounded-full shadow-md text-sm font-bold hover:shadow-lg transition">
