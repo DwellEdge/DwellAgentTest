@@ -28,6 +28,10 @@ const locationRoutes =
   locationRoutes
 );
 
+app.use("/api/agents", agentRoutes);
+app.use("/api/customers", customerRoutes);
+app.use("/api", messageRoutes);
+
 const PORT = process.env.PORT || 5002;
 
 app.listen(PORT, () => {
