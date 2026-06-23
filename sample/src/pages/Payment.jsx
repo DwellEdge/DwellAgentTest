@@ -1,20 +1,28 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Payment() {
     const location = useLocation();
+    const navigate = useNavigate();
+
     const agents = location.state?.agents || [];
     const city = location.state?.city || "";
     const area = location.state?.area || "";
     const customers = location.state?.customers || [];
     const selectedCustomers = location.state?.selectedCustomers || [];
-    const navigate = useNavigate();
 
     const amountPerAgent = 30;
     const totalAmount = agents.length * amountPerAgent;
 
     const [showMobilePopup, setShowMobilePopup] = useState(false);
     const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+
+    // Redirect to home if page is reloaded (state is lost)
+    useEffect(() => {
+        if (!location.state || agents.length === 0) {
+            navigate("/home", { replace: true });
+        }
+    }, []);
 
     return (
         <div className="min-h-screen flex flex-col"
@@ -92,7 +100,7 @@ export default function Payment() {
                             Proceed To Pay →
                         </button>
                         <button
-                            onClick={() => navigate("/home", { state: { city, area, customers, selectedCustomers } })}
+                            onClick={() => navigate(-1)}
                             style={{ borderColor: '#fdd9c8', color: '#c2511f' }}
                             className="flex-1 border-2 py-3 rounded-xl text-sm font-bold hover:bg-orange-50 transition">
                             Cancel
