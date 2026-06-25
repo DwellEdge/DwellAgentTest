@@ -14,11 +14,12 @@ export default function Home() {
 
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
+  const [propertyType, setPropertyType] = useState("Rent");
   const [customers, setCustomers] = useState([]);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
 
 const API_BASE =
-  import.meta.env.VITE_API_URL || "http://localhost:5002";
+  import.meta.env.VITE_API_URL || "http://localhost:5003";
   
   // Fetch cities
   const fetchCities = async (searchValue) => {
@@ -31,7 +32,7 @@ const API_BASE =
       console.log("📍 Fetching cities for:", query);
       const res = await axios.get(`${API_BASE}/api/location`, {
         params: { q: query },
-        timeout: 30000
+        timeout: 10000
       });
       setCitySuggestions(res.data || []);
     } catch (err) {
@@ -79,6 +80,12 @@ const API_BASE =
     }
   }, [selectedCity]);
 
+  useEffect(() => {
+    if (selectedCity && area && propertyType) {
+      fetchCustomers();
+    }
+  }, [selectedCity, area, propertyType]);
+
   const fetchCustomers = async () => {
     if (!selectedCity || !area) {
       alert("Please select both city and area");
@@ -88,7 +95,11 @@ const API_BASE =
       setLoading(true);
       setSearchPerformed(true);
       const res = await axios.get(`${API_BASE}/api/customers`, {
-        params: { city: selectedCity, area: area },
+        params: {
+          city: selectedCity,
+          area: area,
+          propertyType: propertyType
+        },
         timeout: 5000
       });
       setCustomers(res.data || []);
@@ -117,6 +128,8 @@ const API_BASE =
     setSelectedCity(cityName);
     setCitySuggestions([]);
     setArea("");
+    setCustomers([]);
+    setSelectedCustomers([]);
   };
 
   const handleAreaChange = (val) => {
@@ -126,6 +139,7 @@ const API_BASE =
   const handleAreaSelect = (areaName) => {
     setArea(areaName);
     setAreaSuggestions([]);
+    setSelectedCustomers([]);
   };
 
   const handleSubmit = (e) => {
@@ -144,6 +158,7 @@ const API_BASE =
         area,
         customers,
         selectedCustomers,
+        propertyType,
       },
     });
   };
@@ -166,10 +181,10 @@ const API_BASE =
 
       {/* Navigation */}
       <nav style={{ background: 'rgba(255,255,255,0.8)', borderBottom: '1px solid #fdd9c8', backdropFilter: 'blur(10px)' }}
-        className="flex items-center justify-between px-4 sm:px-8 py-4 shadow-sm">
+        className="flex items-center justify-between px-8 py-4 shadow-sm">
         <div
           style={{ color: "#c2511f" }}
-          className="text-lg sm:text-xl font-extrabold tracking-wide cursor-pointer"
+          className="text-xl font-extrabold tracking-wide cursor-pointer"
           onClick={() => navigate("/")}
         >
           DWELLAGENT
@@ -177,22 +192,22 @@ const API_BASE =
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/agent')}
             style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
-            className="px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold text-white shadow-md hover:opacity-90 transition">
+            className="px-5 py-2 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-90 transition">
             Agent
           </button>
         </div>
       </nav>
 
       {/* Main Content */}
-      <main className="flex flex-col items-center px-4 py-6 sm:py-10 sm:px-6 lg:px-8">
+      <main className="flex flex-col items-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="w-full max-w-5xl">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
             {/* City Input */}
             <div className="relative w-full">
-              <div className="flex items-center gap-3 rounded-full bg-white p-1.5 sm:p-2 shadow-lg shadow-orange-100/70 ring-1 ring-orange-100">
+              <div className="flex items-center gap-3 rounded-full bg-white p-2 shadow-lg shadow-orange-100/70 ring-1 ring-orange-100">
                 <input
-                  className="h-12 sm:h-14 min-w-40 flex-1 rounded-full border border-orange-200 bg-white px-4 sm:px-5 text-sm font-medium text-slate-900 outline-none transition focus:border-[#e8724a]"
+                  className="h-14 min-w-40 flex-1 rounded-full border border-orange-200 bg-white px-5 text-sm font-medium text-slate-900 outline-none transition focus:border-[#e8724a]"
                   type="text"
                   placeholder="Search City (e.g. Bengaluru, Hyderabad)"
                   value={city}
@@ -203,7 +218,7 @@ const API_BASE =
 
               {/* City Dropdown */}
               {citySuggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-orange-100 z-50 max-h-60 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-lg border border-orange-100 z-50">
                   {citySuggestions.map((item, i) => (
                     <button
                       key={i}
@@ -220,9 +235,9 @@ const API_BASE =
 
             {/* Area Input */}
             <div className="relative w-full">
-              <div className="flex items-center gap-3 rounded-full bg-white p-1.5 sm:p-2 shadow-lg shadow-orange-100/70 ring-1 ring-orange-100">
+              <div className="flex items-center gap-3 rounded-full bg-white p-2 shadow-lg shadow-orange-100/70 ring-1 ring-orange-100">
                 <input
-                  className={`h-12 sm:h-14 flex-1 rounded-full border px-4 sm:px-5 text-sm outline-none transition ${!selectedCity
+                  className={`flex-1 rounded-full border px-5 py-4 text-sm outline-none transition ${!selectedCity
                     ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
                     : "border-slate-200 bg-white text-slate-900 focus:border-[#e8724a] focus:ring-4 focus:ring-orange-50"
                     }`}
@@ -237,8 +252,8 @@ const API_BASE =
 
               {/* Area Dropdown */}
               {areaSuggestions.length > 0 && selectedCity && !area && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-orange-100 z-50 max-h-60 overflow-y-auto">
-                  <div className="p-2 text-xs text-slate-500 border-b bg-slate-50 sticky top-0">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-lg border border-orange-100 z-50 max-h-64 overflow-y-auto">
+                  <div className="p-2 text-xs text-slate-500 border-b">
                     {areaSuggestions.length} areas found
                   </div>
                   {areaSuggestions.map((areaName, i) => (
@@ -255,43 +270,82 @@ const API_BASE =
               )}
             </div>
 
-            {/* Search Button Block */}
-            <div className="flex justify-end mt-1">
+            {/* New Repositioned Search Button Container */}
+            <div className="flex justify-end items-center gap-4 mt-1">
+
+              <select
+                value={propertyType}
+                onChange={(e) => {
+                  setPropertyType(e.target.value);
+                  setSelectedCustomers([]);
+                }}
+                className="h-12 px-6 rounded-full border border-orange-200 bg-white text-[#c2511f] font-semibold shadow-md outline-none"
+              >
+                <option value="Rent">
+                  Rent
+                </option>
+
+                <option value="Lease">
+                  Lease
+                </option>
+
+                <option value="Purchase">
+                  Purchase
+                </option>
+              </select>
+
               <button
                 type="submit"
-                disabled={!selectedCity || !area || loading}
-                style={selectedCity && area && !loading ? { background: 'linear-gradient(135deg, #e8724a, #f59e6c)' } : {}}
-                className={`flex h-12 w-full sm:w-auto px-8 items-center justify-center rounded-full text-white font-bold text-sm tracking-wider shadow-md shadow-orange-200/50 transition duration-200 ${!selectedCity || !area || loading
-                  ? "bg-slate-300 cursor-not-allowed shadow-none"
-                  : "hover:opacity-95 transform active:scale-98 sm:hover:-translate-y-0.5"
+                disabled={
+                  !selectedCity ||
+                  !area ||
+                  loading
+                }
+                style={
+                  selectedCity &&
+                    area &&
+                    !loading
+                    ? {
+                      background:
+                        "linear-gradient(135deg,#e8724a,#f59e6c)"
+                    }
+                    : {}
+                }
+                className={`flex h-12 px-10 items-center justify-center rounded-full text-white font-bold text-sm tracking-wider shadow-md transition ${!selectedCity || !area || loading
+                  ? "bg-slate-300 cursor-not-allowed"
+                  : "hover:opacity-90"
                   }`}
               >
                 🔍 SEARCH
               </button>
+
             </div>
           </form>
 
           {/* Styled Orange Tags */}
-          <div className="mt-4 flex flex-wrap gap-2 sm:gap-3">
-            <span className="rounded-full bg-orange-100 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-[#c2511f] ring-1 ring-orange-200">
-              City: {selectedCity ? selectedCity.split(',')[0] : "Not selected"}
+          <div className="mt-4 flex flex-wrap gap-3">
+            <span className="rounded-full bg-orange-100 px-4 py-2 text-sm font-medium text-[#c2511f] ring-1 ring-orange-200">
+              City: {selectedCity || "Not selected"}
             </span>
-            <span className="rounded-full bg-orange-50 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-slate-600 ring-1 ring-orange-100">
+            <span className="rounded-full bg-orange-50 px-4 py-2 text-sm font-medium text-slate-600 ring-1 ring-orange-100">
               Area: {area || "Not selected"}
+            </span>
+            <span className="rounded-full bg-orange-50 px-4 py-2 text-sm font-medium text-slate-600 ring-1 ring-orange-100">
+              Property: {propertyType}
             </span>
           </div>
 
           {/* Loader */}
           {loading && (
-            <div className="mt-8 flex justify-center">
-              <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-[#e8724a]"></div>
+            <div className="mt-6 flex justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e8724a]"></div>
             </div>
           )}
 
           {/* No Results */}
           {searchPerformed && !loading && customers.length === 0 && (
-            <div className="mt-6 rounded-2xl sm:rounded-3xl bg-red-50 border border-red-200 p-4 sm:p-6 text-center">
-              <p className="text-red-700 text-sm sm:text-base font-medium">
+            <div className="mt-6 rounded-3xl bg-red-50 border border-red-200 p-6 text-center">
+              <p className="text-red-700 font-medium">
                 No records found for City:{" "}
                 <span className="font-semibold">{city ? city.split(",")[0].trim() : ""}</span> and Area:{" "}
                 <span className="font-semibold">{area ? area.split(",")[0].trim() : ""}</span>
@@ -301,8 +355,8 @@ const API_BASE =
 
           {/* Results Block */}
           {customers.length > 0 && (
-            <div className="mt-6 overflow-hidden rounded-2xl sm:rounded-3xl bg-white text-slate-800 shadow-xl border border-orange-100">
-              <div className="border-b border-orange-100 bg-orange-50/50 px-4 sm:px-6 py-4 text-xs sm:text-sm font-bold text-slate-700">
+            <div className="mt-6 overflow-hidden rounded-3xl bg-white text-slate-800 shadow-xl border border-orange-100">
+              <div className="border-b border-orange-100 bg-orange-50/50 px-6 py-4 text-sm font-bold text-slate-700">
                 Results ({customers.length})
               </div>
 
@@ -310,23 +364,25 @@ const API_BASE =
                 {customers.map((record) => (
                   <label
                     key={record._id}
-                    className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 sm:py-4 hover:bg-orange-50/30 transition cursor-pointer select-none"
+                    className="flex items-center gap-4 px-6 py-4 hover:bg-orange-50/30 transition cursor-pointer"
                   >
                     <input
                       type="checkbox"
                       checked={selectedCustomers.includes(record._id)}
                       onChange={() => toggleCustomerSelection(record._id)}
-                      className="h-5 w-5 rounded accent-[#e8724a] shrink-0"
+                      className="h-5 w-5 accent-[#e8724a]"
                     />
 
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-sm sm:text-base text-slate-800 truncate">
+                    <div className="flex-1">
+                      <div className="font-bold text-slate-800">
                         {record.firstName} {record.lastName}
                       </div>
-                      <div className="text-xs sm:text-sm text-slate-500 truncate">
+
+                      <div className="text-sm text-slate-500">
                         Area: {record.area}
                       </div>
-                      <div className="text-xs sm:text-sm text-[#c2511f] font-semibold mt-0.5">
+
+                      <div className="text-sm text-[#c2511f] font-semibold mt-0.5">
                         Number of Properties: {record["Number of Property"] || 0}
                       </div>
                     </div>
@@ -335,14 +391,14 @@ const API_BASE =
               </div>
 
               {/* Bottom Action Buttons */}
-              <div className="flex flex-col sm:flex-row justify-center gap-3 border-t border-orange-100 bg-orange-50/20 px-4 sm:px-6 py-4 sm:py-5">
+              <div className="flex justify-center gap-4 border-t border-orange-100 bg-orange-50/20 px-6 py-5">
                 <button
                   type="button"
                   onClick={handleContinue}
                   disabled={selectedCustomers.length === 0}
                   style={selectedCustomers.length > 0 ? { background: 'linear-gradient(135deg, #e8724a, #f59e6c)' } : {}}
-                  className={`w-full sm:w-auto order-1 sm:order-0 rounded-full px-8 py-2.5 text-sm font-bold text-white shadow-md transition ${selectedCustomers.length > 0
-                    ? "hover:opacity-90 active:scale-98"
+                  className={`rounded-full px-8 py-2.5 font-bold text-white shadow-md transition ${selectedCustomers.length > 0
+                    ? "hover:opacity-90"
                     : "cursor-not-allowed bg-slate-300 shadow-none"
                     }`}
                 >
@@ -353,8 +409,8 @@ const API_BASE =
                   type="button"
                   onClick={handleCancel}
                   disabled={selectedCustomers.length === 0}
-                  className={`w-full sm:w-auto order-2 sm:order-0 rounded-full px-8 py-2.5 text-sm font-bold border transition ${selectedCustomers.length > 0
-                    ? "border-red-200 text-red-500 bg-red-50 hover:bg-red-100 active:scale-98"
+                  className={`rounded-full px-8 py-2.5 font-bold border transition ${selectedCustomers.length > 0
+                    ? "border-red-200 text-red-500 bg-red-50 hover:bg-red-100"
                     : "cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50"
                     }`}
                 >

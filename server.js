@@ -28,7 +28,27 @@ const locationRoutes =
   locationRoutes
 );
 
-const PORT = process.env.PORT || 5002;
+const propertyTypeRoutes =
+require("./routes/propertyTypeRoutes");
+
+app.use(
+  "/api/property-types",
+  propertyTypeRoutes
+);
+
+const transactionHistoryRoutes =
+require("./routes/transactionHistoryRoutes");
+
+app.use(
+  "/api/transactions",
+  transactionHistoryRoutes
+);
+
+app.use("/api/agents", agentRoutes);
+app.use("/api/customers", customerRoutes);
+app.use("/api", messageRoutes);
+
+const PORT = process.env.PORT || 5003;
 
 app.listen(PORT, () => {
   console.log(
