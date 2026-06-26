@@ -28,6 +28,22 @@ const locationRoutes =
   locationRoutes
 );
 
+const propertyTypeRoutes =
+require("./routes/propertyTypeRoutes");
+
+app.use(
+  "/api/property-types",
+  propertyTypeRoutes
+);
+
+const transactionHistoryRoutes =
+require("./routes/transactionHistoryRoutes");
+
+app.use(
+  "/api/transactions",
+  transactionHistoryRoutes
+);
+
 app.use("/api/agents", agentRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api", messageRoutes);
