@@ -14,6 +14,7 @@ export default function Home() {
 
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
+  const [propertyType, setPropertyType] = useState("Rent");
   const [customers, setCustomers] = useState([]);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
 
@@ -74,6 +75,12 @@ export default function Home() {
     }
   }, [selectedCity]);
 
+  useEffect(() => {
+    if (selectedCity && area && propertyType) {
+      fetchCustomers();
+    }
+  }, [selectedCity, area, propertyType]);
+
   const fetchCustomers = async () => {
     if (!selectedCity || !area) {
       alert("Please select both city and area");
@@ -83,7 +90,11 @@ export default function Home() {
       setLoading(true);
       setSearchPerformed(true);
       const res = await axios.get(`${API_BASE}/api/customers`, {
-        params: { city: selectedCity, area: area },
+        params: {
+          city: selectedCity,
+          area: area,
+          propertyType: propertyType
+        },
         timeout: 5000
       });
       setCustomers(res.data || []);
@@ -112,6 +123,8 @@ export default function Home() {
     setSelectedCity(cityName);
     setCitySuggestions([]);
     setArea("");
+    setCustomers([]);
+    setSelectedCustomers([]);
   };
 
   const handleAreaChange = (val) => {
@@ -121,6 +134,7 @@ export default function Home() {
   const handleAreaSelect = (areaName) => {
     setArea(areaName);
     setAreaSuggestions([]);
+    setSelectedCustomers([]);
   };
 
   const handleSubmit = (e) => {
@@ -139,6 +153,7 @@ export default function Home() {
         area,
         customers,
         selectedCustomers,
+        propertyType,
       },
     });
   };
@@ -257,19 +272,55 @@ export default function Home() {
               )}
             </div>
 
-            {/* Search Button */}
-            <div className="flex justify-end mt-1">
+            {/* New Repositioned Search Button Container */}
+            <div className="flex justify-end items-center gap-4 mt-1">
+
+              <select
+                value={propertyType}
+                onChange={(e) => {
+                  setPropertyType(e.target.value);
+                  setSelectedCustomers([]);
+                }}
+                className="h-12 px-6 rounded-full border border-orange-200 bg-white text-[#c2511f] font-semibold shadow-md outline-none"
+              >
+                <option value="Rent">
+                  Rent
+                </option>
+
+                <option value="Lease">
+                  Lease
+                </option>
+
+                <option value="Purchase">
+                  Purchase
+                </option>
+              </select>
+
               <button
                 type="submit"
-                disabled={!selectedCity || !area || loading}
-                style={selectedCity && area && !loading ? { background: 'linear-gradient(135deg, #e8724a, #f59e6c)' } : {}}
-                className={`flex h-12 px-8 items-center justify-center rounded-full text-white font-bold text-sm tracking-wider shadow-md shadow-orange-200/50 transition duration-200 ${!selectedCity || !area || loading
-                  ? "bg-slate-300 cursor-not-allowed shadow-none"
-                  : "hover:opacity-95 transform hover:-translate-y-0.5"
+                disabled={
+                  !selectedCity ||
+                  !area ||
+                  loading
+                }
+                style={
+                  selectedCity &&
+                    area &&
+                    !loading
+                    ? {
+                      background:
+                        "linear-gradient(135deg,#e8724a,#f59e6c)"
+                    }
+                    : {}
+                }
+                className={`flex h-12 px-10 items-center justify-center rounded-full text-white font-bold text-sm tracking-wider shadow-md transition ${!selectedCity || !area || loading
+                  ? "bg-slate-300 cursor-not-allowed"
+                  : "hover:opacity-90"
                   }`}
               >
                 🔍 SEARCH
               </button>
+
             </div>
           </form>
 
@@ -280,6 +331,9 @@ export default function Home() {
             </span>
             <span className="rounded-full bg-orange-50 px-4 py-2 text-sm font-medium text-slate-600 ring-1 ring-orange-100">
               Area: {area || "Not selected"}
+            </span>
+            <span className="rounded-full bg-orange-50 px-4 py-2 text-sm font-medium text-slate-600 ring-1 ring-orange-100">
+              Property: {propertyType}
             </span>
           </div>
 

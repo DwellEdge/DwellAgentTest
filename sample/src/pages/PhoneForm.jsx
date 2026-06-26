@@ -11,6 +11,25 @@ export default function PhoneForm() {
   const [status, setStatus] = useState("");
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
+  const city = location.state?.city || "";
+  const area = location.state?.area || "";
+  const propertyType =
+    location.state?.propertyType || "";
+
+  const customers =
+    location.state?.customers || [];
+
+  const selectedCustomers =
+    location.state?.selectedCustomers || [];
+
+  const selectedCustomer =
+    customers.find(
+      customer =>
+        selectedCustomers.includes(
+          customer._id
+        )
+    );
+
   const handleSubmit = async () => {
     if (!name.trim()) {
       setStatus("❌ Please enter your name");
@@ -35,12 +54,78 @@ export default function PhoneForm() {
       const data = await res.json();
 
       if (data.success) {
+
+        try {
+
+          const API_BASE =
+            import.meta.env.VITE_API_URL ||
+            "http://localhost:5002";
+
+          await fetch(
+            `${API_BASE}/api/transactions`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                transactionId:
+                  `TXN${Date.now()}`,
+
+                city:
+                  location.state?.city,
+
+                area:
+                  location.state?.area,
+
+                customerId:
+                  selectedCustomer?.Id ||
+                  selectedCustomer?.id ||
+                  null,
+
+                noOfAgentsSelected:
+                  agents.length,
+
+                agentIds:
+                  agents.map(
+                    agent =>
+                      agent.agentId ||
+                      agent.agentid
+                  ),
+
+                propertyType,
+
+                mobileNumber:
+                  phone,
+
+                amountReceived:
+                  agents.length * 30,
+              }),
+            }
+          );
+
+          console.log("Selected Customer:", selectedCustomer);
+
+        } catch (err) {
+          console.error(
+            "Transaction save error",
+            err
+          );
+        }
+
         setShowSuccessPopup(true);
         setName("");
         setPhone("");
         setStatus("");
+
       } else {
-        setStatus("❌ Failed: " + data.error);
+
+        setStatus(
+          "❌ Failed: " +
+          data.error
+        );
+
       }
     } catch (err) {
       setStatus("❌ Server error");

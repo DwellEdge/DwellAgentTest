@@ -131,7 +131,17 @@ export default function Payment() {
                         <button
                             onClick={() => {
                                 setShowMobilePopup(false);
-                                navigate("/phoneform", { state: { agents, city, area, customers, selectedCustomers } });
+                                navigate("/phoneform", {
+                                    state: {
+                                        agents,
+                                        city,
+                                        area,
+                                        customers,
+                                        selectedCustomers,
+                                        propertyType:
+                                            location.state?.propertyType
+                                    }
+                                });
                             }}
                             style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
                             className="w-full text-white py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition">

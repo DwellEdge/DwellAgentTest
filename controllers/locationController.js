@@ -77,27 +77,39 @@ const getCustomers = async (
       req.query.city?.trim();
 
     const area =
-      req.query.area?.trim();
+  req.query.area?.trim();
+
+const propertyType =
+  req.query.propertyType?.trim();
 
     if (!city || !area) {
       return res.json([]);
     }
 
+    const TransactionHistory =
+  require("../models/TransactionHistory");
+
+  console.log(
+  "Property Type From UI:",
+  req.query.propertyType
+);
+
     const result =
-      await getCustomersByArea(
-        city,
-        area
-      );
+  await getCustomersByArea(
+    city,
+    area,
+    propertyType
+  );
 
     res.json(result);
 
   } catch (error) {
+  console.error("GET CUSTOMERS ERROR:", error);
 
-    res.status(500).json({
-      message: error.message,
-    });
-
-  }
+  res.status(500).json({
+    message: error.message,
+  });
+}
 };
 
 module.exports = {
