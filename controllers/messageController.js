@@ -31,17 +31,41 @@ const sendMessage = async (req, res) => {
 
     const whatsappMessage = `Hi ${name}! 👋\n\nThank you for using DwellAgent! 🏠\n\nYour selected agents:\n\n${agentDetails}\n\nOur team will reach out to you shortly.`;
 
-    await client.messages.create({
-      body: smsMessage,
-      from: process.env.TWILIO_PHONE,
-      to: `+91${phone}`,
-    });
+   try {
+  console.log("Sending SMS...");
 
-    await client.messages.create({
-      body: whatsappMessage,
-      from: "whatsapp:+14155238886",
-      to: `whatsapp:+91${phone}`,
-    });
+  const sms = await client.messages.create({
+    body: smsMessage,
+    from: process.env.TWILIO_PHONE,
+    to: `+91${phone}`,
+  });
+
+  console.log("SMS Sent:", sms.sid);
+
+} catch (err) {
+  console.error("SMS ERROR");
+  console.error(err.code);
+  console.error(err.message);
+  console.error(err.moreInfo);
+}
+
+try {
+  console.log("Sending WhatsApp...");
+
+  const wa = await client.messages.create({
+    body: whatsappMessage,
+    from: "whatsapp:+14155238886",
+    to: `whatsapp:+91${phone}`,
+  });
+
+  console.log("WhatsApp Sent:", wa.sid);
+
+} catch (err) {
+  console.error("WHATSAPP ERROR");
+  console.error(err.code);
+  console.error(err.message);
+  console.error(err.moreInfo);
+}
 
     res.json({ success: true });
 
@@ -50,5 +74,6 @@ const sendMessage = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
 
 module.exports = { sendMessage };
