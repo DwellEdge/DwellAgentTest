@@ -12,8 +12,8 @@ export default function PhoneForm() {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const API_BASE =
-            import.meta.env.VITE_API_URL ||
-            "https://dwellagenttest-backend.onrender.com";
+    import.meta.env.VITE_API_URL ||
+    "https://dwellagenttest-backend.onrender.com";
 
   const city = location.state?.city || "";
   const area = location.state?.area || "";
@@ -51,8 +51,14 @@ export default function PhoneForm() {
       // Send WhatsApp & SMS + Save to DB
       const res = await fetch(`${API_BASE}/api/send-message`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, name, agents }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone,
+          name,
+          agents,
+        }),
       });
 
       const data = await res.json();
@@ -60,48 +66,45 @@ export default function PhoneForm() {
       if (data.success) {
 
         try {
-          await fetch(
-            `${API_BASE}/api/transactions`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-              body: JSON.stringify({
-                transactionId:
-                  `TXN${Date.now()}`,
+          await fetch(`${API_BASE}/api/transactions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              transactionId:
+                `TXN${Date.now()}`,
 
-                city:
-                  location.state?.city,
+              city:
+                location.state?.city,
 
-                area:
-                  location.state?.area,
+              area:
+                location.state?.area,
 
-                customerId:
-                  selectedCustomer?.Id ||
-                  selectedCustomer?.id ||
-                  null,
+              customerId:
+                selectedCustomer?.Id ||
+                selectedCustomer?.id ||
+                null,
 
-                noOfAgentsSelected:
-                  agents.length,
+              noOfAgentsSelected:
+                agents.length,
 
-                agentIds:
-                  agents.map(
-                    agent =>
-                      agent.agentId ||
-                      agent.agentid
-                  ),
+              agentIds:
+                agents.map(
+                  agent =>
+                    agent.agentId ||
+                    agent.agentid
+                ),
 
-                propertyType,
+              propertyType,
 
-                mobileNumber:
-                  phone,
+              mobileNumber:
+                phone,
 
-                amountReceived:
-                  agents.length * 30,
-              }),
-            }
+              amountReceived:
+                agents.length * 30,
+            }),
+          }
           );
 
           console.log("Selected Customer:", selectedCustomer);

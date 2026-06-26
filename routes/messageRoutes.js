@@ -1,28 +1,16 @@
 const express = require("express");
 
-const {
-  getLocations,
-  getAreas,
-  getCustomers,
-} = require(
-  "../controllers/locationController"
-);
-
 const router = express.Router();
 
-router.get(
-  "/location",
-  getLocations
-);
+console.log("✅ messageRoutes Loaded");
 
-router.get(
-  "/areas",
-  getAreas
-);
+const {
+  sendMessage,
+} = require("../controllers/messageController");
 
-router.get(
-  "/customers",
-  getCustomers
-);
+router.post("/send-message", (req, res, next) => {
+  console.log("✅ /api/send-message HIT");
+  next();
+}, sendMessage);
 
 module.exports = router;

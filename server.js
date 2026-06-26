@@ -49,6 +49,13 @@ app.use("/api/customers", customerRoutes);
 app.use("/api", messageRoutes);
 app.use("/api/property-types", propertyTypeRoutes);
 
+console.log("TWILIO_ACCOUNT_SID:", process.env.TWILIO_ACCOUNT_SID);
+console.log(
+  "TWILIO_AUTH_TOKEN:",
+  process.env.TWILIO_AUTH_TOKEN ? "FOUND" : "NOT FOUND"
+);
+console.log("TWILIO_PHONE:", process.env.TWILIO_PHONE);
+
 const PORT = process.env.PORT || 5003;
 
 app.listen(PORT, () => {
