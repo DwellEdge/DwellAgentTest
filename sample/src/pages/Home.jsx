@@ -20,7 +20,7 @@ export default function Home() {
   const [selectedPropertyTypeId, setSelectedPropertyTypeId] = useState("P01");
 
   const API_BASE =
-  import.meta.env.VITE_API_URL || "http://localhost:5003";
+  import.meta.env.VITE_API_URL;
 
   const fetchCities = async (searchValue) => {
     const query = searchValue?.trim();
