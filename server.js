@@ -8,6 +8,7 @@ const connectDB = require("./config/db");
 const agentRoutes = require("./routes/agentRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const messageRoutes = require("./routes/messageRoutes");
+const propertyTypeRoutes = require("./routes/propertyType");
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use(
 app.use("/api/agents", agentRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api", messageRoutes);
+app.use("/api/property-types", propertyTypeRoutes);
 
 const PORT = process.env.PORT || 5002;
 
