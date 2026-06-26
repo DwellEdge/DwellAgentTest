@@ -4,14 +4,12 @@
   "version": "0.0.0",
   "homepage": "https://dwelledge.github.io/DwellAgentTest",
   "type": "module",
-
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
-
   "dependencies": {
     "cors": "^2.8.6",
     "dotnet": "^1.1.4",
@@ -21,7 +19,6 @@
     "react-router-dom": "^7.16.0",
     "twilio": "^6.0.2"
   },
-
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.3.0",
