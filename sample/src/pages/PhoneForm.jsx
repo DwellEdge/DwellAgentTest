@@ -11,6 +11,10 @@ export default function PhoneForm() {
   const [status, setStatus] = useState("");
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
+  const API_BASE =
+            import.meta.env.VITE_API_URL ||
+            "https://dwellagenttest-backend.onrender.com";
+
   const city = location.state?.city || "";
   const area = location.state?.area || "";
   const propertyType =
@@ -45,7 +49,7 @@ export default function PhoneForm() {
 
     try {
       // Send WhatsApp & SMS + Save to DB
-      const res = await fetch("http://localhost:5003/api/send-message", {
+      const res = await fetch(`${API_BASE}/api/send-message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, name, agents }),
@@ -56,11 +60,6 @@ export default function PhoneForm() {
       if (data.success) {
 
         try {
-
-          const API_BASE =
-            import.meta.env.VITE_API_URL ||
-            "https://dwellagenttest-backend.onrender.com";
-
           await fetch(
             `${API_BASE}/api/transactions`,
             {
