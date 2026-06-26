@@ -20,7 +20,6 @@ export default function Home() {
 
   const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5002";
 
-  // Fetch cities
   const fetchCities = async (searchValue) => {
     const query = searchValue?.trim();
     if (!query || query.length < 1) {
@@ -28,7 +27,6 @@ export default function Home() {
       return;
     }
     try {
-      console.log("📍 Fetching cities for:", query);
       const res = await axios.get(`${API_BASE}/api/location`, {
         params: { q: query },
         timeout: 10000
@@ -40,7 +38,6 @@ export default function Home() {
     }
   };
 
-  // Fetch areas for selected city
   const fetchAreas = async (cityValue) => {
     if (!cityValue || cityValue.length < 1) {
       setAreaSuggestions([]);
@@ -49,7 +46,6 @@ export default function Home() {
     }
     setLoadingAreas(true);
     try {
-      console.log("🌍 Fetching areas for city:", cityValue);
       const res = await axios.get(`${API_BASE}/api/areas`, {
         params: { city: cityValue },
         timeout: 15000
@@ -232,6 +228,13 @@ export default function Home() {
               )}
             </div>
 
+            {/* City not found message */}
+            {city.length > 1 && citySuggestions.length === 0 && !selectedCity && (
+              <p className="text-sm mt-1 ml-2" style={{ color: '#a8674a' }}>
+                No cities found for "<span className="font-semibold">{city}</span>". Try a different name.
+              </p>
+            )}
+
             {/* Area Input */}
             <div className="relative w-full">
               <div className="flex items-center gap-3 rounded-full bg-white p-2 shadow-lg shadow-orange-100/70 ring-1 ring-orange-100">
@@ -321,7 +324,7 @@ export default function Home() {
             </div>
           </form>
 
-          {/* Styled Orange Tags */}
+          {/* Tags */}
           <div className="mt-4 flex flex-wrap gap-3">
             <span className="rounded-full bg-orange-100 px-4 py-2 text-sm font-medium text-[#c2511f] ring-1 ring-orange-200">
               City: {selectedCity || "Not selected"}
@@ -343,11 +346,18 @@ export default function Home() {
 
           {/* No Results */}
           {searchPerformed && !loading && customers.length === 0 && (
-            <div className="mt-6 rounded-3xl bg-red-50 border border-red-200 p-6 text-center">
-              <p className="text-red-700 font-medium">
-                No records found for City:{" "}
-                <span className="font-semibold">{city ? city.split(",")[0].trim() : ""}</span> and Area:{" "}
-                <span className="font-semibold">{area ? area.split(",")[0].trim() : ""}</span>
+            <div className="mt-6 rounded-3xl border border-orange-100 bg-white p-10 text-center shadow-lg">
+              <div className="text-5xl mb-4">🏠</div>
+              <h3 style={{ color: '#7c2d12' }} className="text-xl font-extrabold mb-2">
+                No Agents Found
+              </h3>
+              <p style={{ color: '#a8674a' }} className="text-sm mb-1">
+                We couldn't find any agents in{" "}
+                <span className="font-bold">{area ? area.split(",")[0].trim() : ""}</span>,{" "}
+                <span className="font-bold">{city ? city.split(",")[0].trim() : ""}</span>.
+              </p>
+              <p style={{ color: '#a8674a' }} className="text-sm">
+                Try searching a different city or area.
               </p>
             </div>
           )}
@@ -371,16 +381,13 @@ export default function Home() {
                       onChange={() => toggleCustomerSelection(record._id)}
                       className="h-5 w-5 accent-[#e8724a]"
                     />
-
                     <div className="flex-1">
                       <div className="font-bold text-slate-800">
                         {record.firstName} {record.lastName}
                       </div>
-
                       <div className="text-sm text-slate-500">
                         Area: {record.area}
                       </div>
-
                       <div className="text-sm text-[#c2511f] font-semibold mt-0.5">
                         Number of Properties: {record["Number of Property"] || 0}
                       </div>
@@ -403,7 +410,6 @@ export default function Home() {
                 >
                   Continue
                 </button>
-
                 <button
                   type="button"
                   onClick={handleCancel}
