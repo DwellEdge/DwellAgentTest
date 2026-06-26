@@ -14,14 +14,13 @@ export default function Home() {
 
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
-  const [propertyType, setPropertyType] = useState("Rent");
-  const [customers, setCustomers] = useState([]);
-  const [selectedCustomers, setSelectedCustomers] = useState([]);
+  const [agents, setAgents] = useState([]);
+  const [selectedAgents, setSelectedAgents] = useState([]);
+  const [propertyTypes, setPropertyTypes] = useState([]);
+  const [selectedPropertyTypeId, setSelectedPropertyTypeId] = useState("P01");
 
-const API_BASE =
-  import.meta.env.VITE_API_URL || "http://localhost:5003";
-  
-  // Fetch cities
+  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5002";
+
   const fetchCities = async (searchValue) => {
     const query = searchValue?.trim();
     if (!query || query.length < 1) {
@@ -29,19 +28,17 @@ const API_BASE =
       return;
     }
     try {
-      console.log("📍 Fetching cities for:", query);
       const res = await axios.get(`${API_BASE}/api/location`, {
         params: { q: query },
-        timeout: 10000
+        timeout: 10000,
       });
       setCitySuggestions(res.data || []);
     } catch (err) {
-      console.error("❌ Error fetching cities:", err.message);
+      console.error("Error fetching cities:", err.message);
       setCitySuggestions([]);
     }
   };
 
-  // Fetch areas for selected city
   const fetchAreas = async (cityValue) => {
     if (!cityValue || cityValue.length < 1) {
       setAreaSuggestions([]);
@@ -50,27 +47,73 @@ const API_BASE =
     }
     setLoadingAreas(true);
     try {
-      console.log("🌍 Fetching areas for city:", cityValue);
       const res = await axios.get(`${API_BASE}/api/areas`, {
         params: { city: cityValue },
-        timeout: 15000
+        timeout: 15000,
       });
       setAreaSuggestions(res.data || []);
     } catch (err) {
-      console.error("❌ Error fetching areas:", err.message);
+      console.error("Error fetching areas:", err.message);
       setAreaSuggestions([]);
     } finally {
       setLoadingAreas(false);
     }
   };
 
+  const fetchAgents = async () => {
+    if (!selectedCity || !area) {
+      alert("Please select both city and area");
+      return;
+    }
+    try {
+      setLoading(true);
+      setSearchPerformed(true);
+      const res = await axios.get(`${API_BASE}/api/agents`, {
+        params: {
+          city: selectedCity,
+          area,
+          propertyTypeId: selectedPropertyTypeId,
+        },
+        timeout: 5000,
+      });
+      setAgents(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch agents:", err.message);
+      setAgents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reload detection — runs only once on mount
   useEffect(() => {
+    const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
+    if (isReload) {
+      setCity("");
+      setArea("");
+      setAgents([]);
+      setSelectedAgents([]);
+      setSelectedCity("");
+      setSearchPerformed(false);
+      window.history.replaceState(null, "");
+    }
+  }, []);
+
+  // Restore state when navigating back from Payment — runs every time location.state changes
+  useEffect(() => {
+    const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
+    if (isReload) return;
+
     if (location.state) {
       setCity(location.state.city || "");
       setArea(location.state.area || "");
-      setCustomers(location.state.customers || []);
-      setSelectedCustomers(location.state.selectedCustomers || []);
+      setAgents(location.state.agents || []);
+      setSelectedAgents(location.state.selectedAgents || []);
       setSelectedCity(location.state.city || "");
+      setSearchPerformed(location.state.agents?.length > 0);
+      if (location.state.propertyTypeId) {
+        setSelectedPropertyTypeId(location.state.propertyTypeId);
+      }
     }
   }, [location.state]);
 
@@ -80,42 +123,28 @@ const API_BASE =
     }
   }, [selectedCity]);
 
+  // Fetch property types from API
   useEffect(() => {
-    if (selectedCity && area && propertyType) {
-      fetchCustomers();
-    }
-  }, [selectedCity, area, propertyType]);
+    axios
+      .get(`${API_BASE}/api/property-types`)
+      .then((res) => setPropertyTypes(res.data || []))
+      .catch((err) => console.error("Failed to load property types", err));
+  }, []);
 
-  const fetchCustomers = async () => {
-    if (!selectedCity || !area) {
-      alert("Please select both city and area");
-      return;
+  // Re-fetch agents when purpose changes (only if search already done)
+  useEffect(() => {
+    if (selectedCity && area && searchPerformed) {
+      fetchAgents();
     }
-    try {
-      setLoading(true);
-      setSearchPerformed(true);
-      const res = await axios.get(`${API_BASE}/api/customers`, {
-        params: {
-          city: selectedCity,
-          area: area,
-          propertyType: propertyType
-        },
-        timeout: 5000
-      });
-      setCustomers(res.data || []);
-    } catch (err) {
-      console.error("❌ Error fetching customers:", err.message);
-      setCustomers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [selectedPropertyTypeId]);
 
   const handleCityChange = (val) => {
     setCity(val);
     setSelectedCity("");
     setArea("");
     setAreaSuggestions([]);
+    setAgents([]);
+    setSearchPerformed(false);
     if (val.length > 0) {
       fetchCities(val);
     } else {
@@ -128,8 +157,8 @@ const API_BASE =
     setSelectedCity(cityName);
     setCitySuggestions([]);
     setArea("");
-    setCustomers([]);
-    setSelectedCustomers([]);
+    setAgents([]);
+    setSearchPerformed(false);
   };
 
   const handleAreaChange = (val) => {
@@ -139,49 +168,61 @@ const API_BASE =
   const handleAreaSelect = (areaName) => {
     setArea(areaName);
     setAreaSuggestions([]);
-    setSelectedCustomers([]);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    fetchCustomers();
+    fetchAgents();
   };
 
   const handleContinue = () => {
-    const selectedAgents = customers.filter((item) =>
-      selectedCustomers.includes(item._id)
+    const chosenAgents = agents.filter((item) =>
+      selectedAgents.includes(item._id)
     );
     navigate("/payment", {
       state: {
-        agents: selectedAgents,
+        agents: chosenAgents,
         city,
         area,
-        customers,
-        selectedCustomers,
-        propertyType,
+        propertyTypeId: selectedPropertyTypeId,
+        selectedAgents,
       },
     });
   };
 
   const handleCancel = () => {
-    setSelectedCustomers([]);
+    setSelectedAgents([]);
   };
 
-  const toggleCustomerSelection = (customerId) => {
-    setSelectedCustomers((prev) => {
-      if (prev.includes(customerId)) {
-        return prev.filter((id) => id !== customerId);
+  const toggleAgentSelection = (agentId) => {
+    setSelectedAgents((prev) => {
+      if (prev.includes(agentId)) {
+        return prev.filter((id) => id !== agentId);
       }
-      return [...prev, customerId];
+      return [...prev, agentId];
     });
   };
 
-  return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #fff7f3 0%, #ffe8dc 50%, #fff7f3 100%)' }}>
+  const selectedPurposeName =
+    propertyTypes.find((t) => t.propertyTypeId === selectedPropertyTypeId)
+      ?.propertyType || "Rent";
 
-      {/* Navigation */}
-      <nav style={{ background: 'rgba(255,255,255,0.8)', borderBottom: '1px solid #fdd9c8', backdropFilter: 'blur(10px)' }}
-        className="flex items-center justify-between px-8 py-4 shadow-sm">
+  return (
+    <div
+      className="min-h-screen flex flex-col"
+      style={{
+        background:
+          "linear-gradient(135deg, #fff7f3 0%, #ffe8dc 50%, #fff7f3 100%)",
+      }}
+    >
+      <nav
+        style={{
+          background: "rgba(255,255,255,0.8)",
+          borderBottom: "1px solid #fdd9c8",
+          backdropFilter: "blur(10px)",
+        }}
+        className="flex items-center justify-between px-8 py-4 shadow-sm"
+      >
         <div
           style={{ color: "#c2511f" }}
           className="text-xl font-extrabold tracking-wide cursor-pointer"
@@ -190,15 +231,16 @@ const API_BASE =
           DWELLAGENT
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/agent')}
-            style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-90 transition">
+          <button
+            onClick={() => navigate("/agent")}
+            style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
+            className="px-5 py-2 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-90 transition"
+          >
             Agent
           </button>
         </div>
       </nav>
 
-      {/* Main Content */}
       <main className="flex flex-col items-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="w-full max-w-5xl">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -216,7 +258,6 @@ const API_BASE =
                 />
               </div>
 
-              {/* City Dropdown */}
               {citySuggestions.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-lg border border-orange-100 z-50">
                   {citySuggestions.map((item, i) => (
@@ -233,14 +274,22 @@ const API_BASE =
               )}
             </div>
 
+            {/* City not found */}
+            {city.length > 1 && citySuggestions.length === 0 && !selectedCity && (
+              <p className="text-sm mt-1 ml-2" style={{ color: "#a8674a" }}>
+                No cities found for "<span className="font-semibold">{city}</span>". Try a different name.
+              </p>
+            )}
+
             {/* Area Input */}
             <div className="relative w-full">
               <div className="flex items-center gap-3 rounded-full bg-white p-2 shadow-lg shadow-orange-100/70 ring-1 ring-orange-100">
                 <input
-                  className={`flex-1 rounded-full border px-5 py-4 text-sm outline-none transition ${!selectedCity
-                    ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
-                    : "border-slate-200 bg-white text-slate-900 focus:border-[#e8724a] focus:ring-4 focus:ring-orange-50"
-                    }`}
+                  className={`flex-1 rounded-full border px-5 py-4 text-sm outline-none transition ${
+                    !selectedCity
+                      ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
+                      : "border-slate-200 bg-white text-slate-900 focus:border-[#e8724a] focus:ring-4 focus:ring-orange-50"
+                  }`}
                   type="text"
                   placeholder={selectedCity ? "Type to search area..." : "Area"}
                   value={area}
@@ -250,7 +299,6 @@ const API_BASE =
                 />
               </div>
 
-              {/* Area Dropdown */}
               {areaSuggestions.length > 0 && selectedCity && !area && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-lg border border-orange-100 z-50 max-h-64 overflow-y-auto">
                   <div className="p-2 text-xs text-slate-500 border-b">
@@ -270,59 +318,52 @@ const API_BASE =
               )}
             </div>
 
-            {/* New Repositioned Search Button Container */}
-            <div className="flex justify-end items-center gap-4 mt-1">
-
-              <select
-                value={propertyType}
-                onChange={(e) => {
-                  setPropertyType(e.target.value);
-                  setSelectedCustomers([]);
-                }}
-                className="h-12 px-6 rounded-full border border-orange-200 bg-white text-[#c2511f] font-semibold shadow-md outline-none"
-              >
-                <option value="Rent">
-                  Rent
-                </option>
-
-                <option value="Lease">
-                  Lease
-                </option>
-
-                <option value="Purchase">
-                  Purchase
-                </option>
-              </select>
-
+            {/* Search Button — no dropdown, just the button */}
+            <div className="flex justify-end mt-1">
               <button
                 type="submit"
-                disabled={
-                  !selectedCity ||
-                  !area ||
-                  loading
-                }
+                disabled={!selectedCity || !area || loading}
                 style={
-                  selectedCity &&
-                    area &&
-                    !loading
-                    ? {
-                      background:
-                        "linear-gradient(135deg,#e8724a,#f59e6c)"
-                    }
+                  selectedCity && area && !loading
+                    ? { background: "linear-gradient(135deg, #e8724a, #f59e6c)" }
                     : {}
                 }
-                className={`flex h-12 px-10 items-center justify-center rounded-full text-white font-bold text-sm tracking-wider shadow-md transition ${!selectedCity || !area || loading
-                  ? "bg-slate-300 cursor-not-allowed"
-                  : "hover:opacity-90"
-                  }`}
+                className={`flex h-12 px-8 items-center justify-center rounded-full text-white font-bold text-sm tracking-wider shadow-md shadow-orange-200/50 transition duration-200 ${
+                  !selectedCity || !area || loading
+                    ? "bg-slate-300 cursor-not-allowed shadow-none"
+                    : "hover:opacity-95 transform hover:-translate-y-0.5"
+                }`}
               >
                 🔍 SEARCH
               </button>
-
             </div>
           </form>
 
-          {/* Styled Orange Tags */}
+          {/* Purpose Buttons */}
+          <div className="mt-4">
+            <label style={{ color: "#7c2d12", fontWeight: "bold", fontSize: "14px" }}>
+              Purpose
+            </label>
+            <div className="flex gap-3 mt-2 flex-wrap">
+              {propertyTypes.map((type) => (
+                <button
+                  key={type.propertyTypeId}
+                  type="button"
+                  onClick={() => setSelectedPropertyTypeId(type.propertyTypeId)}
+                  style={
+                    selectedPropertyTypeId === type.propertyTypeId
+                      ? { background: "linear-gradient(135deg, #e8724a, #f59e6c)", color: "#fff" }
+                      : { background: "#fff", color: "#c2511f", border: "1px solid #fdd9c8" }
+                  }
+                  className="px-5 py-2 rounded-full text-sm font-bold shadow-sm transition hover:opacity-90"
+                >
+                  {type.propertyType}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tags */}
           <div className="mt-4 flex flex-wrap gap-3">
             <span className="rounded-full bg-orange-100 px-4 py-2 text-sm font-medium text-[#c2511f] ring-1 ring-orange-200">
               City: {selectedCity || "Not selected"}
@@ -331,7 +372,7 @@ const API_BASE =
               Area: {area || "Not selected"}
             </span>
             <span className="rounded-full bg-orange-50 px-4 py-2 text-sm font-medium text-slate-600 ring-1 ring-orange-100">
-              Property: {propertyType}
+              Purpose: {selectedPurposeName}
             </span>
           </div>
 
@@ -343,76 +384,85 @@ const API_BASE =
           )}
 
           {/* No Results */}
-          {searchPerformed && !loading && customers.length === 0 && (
-            <div className="mt-6 rounded-3xl bg-red-50 border border-red-200 p-6 text-center">
-              <p className="text-red-700 font-medium">
-                No records found for City:{" "}
-                <span className="font-semibold">{city ? city.split(",")[0].trim() : ""}</span> and Area:{" "}
-                <span className="font-semibold">{area ? area.split(",")[0].trim() : ""}</span>
+          {searchPerformed && !loading && agents.length === 0 && (
+            <div className="mt-6 rounded-3xl border border-orange-100 bg-white p-10 text-center shadow-lg">
+              <div className="text-5xl mb-4">🏠</div>
+              <h3 style={{ color: "#7c2d12" }} className="text-xl font-extrabold mb-2">
+                No Agents Found
+              </h3>
+              <p style={{ color: "#a8674a" }} className="text-sm mb-1">
+                We couldn't find any agents in{" "}
+                <span className="font-bold">{area ? area.split(",")[0].trim() : ""}</span>,{" "}
+                <span className="font-bold">{city ? city.split(",")[0].trim() : ""}</span>{" "}
+                for {selectedPurposeName}.
+              </p>
+              <p style={{ color: "#a8674a" }} className="text-sm">
+                Try searching a different city, area, or purpose.
               </p>
             </div>
           )}
 
-          {/* Results Block */}
-          {customers.length > 0 && (
+          {/* Results */}
+          {agents.length > 0 && (
             <div className="mt-6 overflow-hidden rounded-3xl bg-white text-slate-800 shadow-xl border border-orange-100">
               <div className="border-b border-orange-100 bg-orange-50/50 px-6 py-4 text-sm font-bold text-slate-700">
-                Results ({customers.length})
+                Results ({agents.length})
               </div>
 
               <div className="divide-y divide-orange-100">
-                {customers.map((record) => (
+                {agents.map((record) => (
                   <label
                     key={record._id}
                     className="flex items-center gap-4 px-6 py-4 hover:bg-orange-50/30 transition cursor-pointer"
                   >
                     <input
                       type="checkbox"
-                      checked={selectedCustomers.includes(record._id)}
-                      onChange={() => toggleCustomerSelection(record._id)}
+                      checked={selectedAgents.includes(record._id)}
+                      onChange={() => toggleAgentSelection(record._id)}
                       className="h-5 w-5 accent-[#e8724a]"
                     />
-
                     <div className="flex-1">
                       <div className="font-bold text-slate-800">
                         {record.firstName} {record.lastName}
                       </div>
-
                       <div className="text-sm text-slate-500">
                         Area: {record.area}
                       </div>
-
                       <div className="text-sm text-[#c2511f] font-semibold mt-0.5">
-                        Number of Properties: {record["Number of Property"] || 0}
+                        {selectedPurposeName} Properties: {record.filteredCount ?? 0}
                       </div>
                     </div>
                   </label>
                 ))}
               </div>
 
-              {/* Bottom Action Buttons */}
               <div className="flex justify-center gap-4 border-t border-orange-100 bg-orange-50/20 px-6 py-5">
                 <button
                   type="button"
                   onClick={handleContinue}
-                  disabled={selectedCustomers.length === 0}
-                  style={selectedCustomers.length > 0 ? { background: 'linear-gradient(135deg, #e8724a, #f59e6c)' } : {}}
-                  className={`rounded-full px-8 py-2.5 font-bold text-white shadow-md transition ${selectedCustomers.length > 0
-                    ? "hover:opacity-90"
-                    : "cursor-not-allowed bg-slate-300 shadow-none"
-                    }`}
+                  disabled={selectedAgents.length === 0}
+                  style={
+                    selectedAgents.length > 0
+                      ? { background: "linear-gradient(135deg, #e8724a, #f59e6c)" }
+                      : {}
+                  }
+                  className={`rounded-full px-8 py-2.5 font-bold text-white shadow-md transition ${
+                    selectedAgents.length > 0
+                      ? "hover:opacity-90"
+                      : "cursor-not-allowed bg-slate-300 shadow-none"
+                  }`}
                 >
                   Continue
                 </button>
-
                 <button
                   type="button"
                   onClick={handleCancel}
-                  disabled={selectedCustomers.length === 0}
-                  className={`rounded-full px-8 py-2.5 font-bold border transition ${selectedCustomers.length > 0
-                    ? "border-red-200 text-red-500 bg-red-50 hover:bg-red-100"
-                    : "cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50"
-                    }`}
+                  disabled={selectedAgents.length === 0}
+                  className={`rounded-full px-8 py-2.5 font-bold border transition ${
+                    selectedAgents.length > 0
+                      ? "border-red-200 text-red-500 bg-red-50 hover:bg-red-100"
+                      : "cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50"
+                  }`}
                 >
                   Cancel
                 </button>
