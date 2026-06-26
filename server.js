@@ -49,10 +49,8 @@ app.use("/api/customers", customerRoutes);
 app.use("/api", messageRoutes);
 app.use("/api/property-types", propertyTypeRoutes);
 
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5003;
 
 app.listen(PORT, () => {
-  console.log(
-    `Server Running On Port ${PORT}`
-  );
+  console.log(`Server Running On Port ${PORT}`);
 });

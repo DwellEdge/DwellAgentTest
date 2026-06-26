@@ -131,7 +131,7 @@ console.log(
     },
   };
 
-  if (propertyTypeId) {
+   if (propertyTypeId) {
   agentFilter["propertyTypes.propertyTypeId"] =
     propertyTypeId;
 }

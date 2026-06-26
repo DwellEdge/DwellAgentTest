@@ -12,7 +12,6 @@ const createTransaction = async (req, res) => {
         mobileNumber:
           req.body.mobileNumber
       });
-      
 
     const transactionData = {
       ...req.body,

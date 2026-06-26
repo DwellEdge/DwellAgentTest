@@ -18,17 +18,13 @@ const agentSchema = new mongoose.Schema({
   address: String,
 
   mobileNumber: String,
-
-  propertyCount: Number,
-
-  propertyTypeId: {
-    type: String,
-    required: true,
-  },
+  propertyTypes: [
+    {
+      propertyTypeId: String,
+      propertyType: String,
+      count: Number,
+    }
+  ]
 });
 
-module.exports = mongoose.model(
-  "Agent",
-  agentSchema,
-  "Agents"
-);
+module.exports = mongoose.model("Agent", agentSchema, "Agents");

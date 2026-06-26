@@ -1,11 +1,28 @@
 const express = require("express");
 
 const {
-  sendMessage,
-} = require("../controllers/messageController");
+  getLocations,
+  getAreas,
+  getCustomers,
+} = require(
+  "../controllers/locationController"
+);
 
 const router = express.Router();
 
-router.post("/send-message", sendMessage);
+router.get(
+  "/location",
+  getLocations
+);
+
+router.get(
+  "/areas",
+  getAreas
+);
+
+router.get(
+  "/customers",
+  getCustomers
+);
 
 module.exports = router;

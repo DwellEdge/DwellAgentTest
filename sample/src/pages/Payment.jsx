@@ -1,14 +1,16 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Payment() {
     const location = useLocation();
+    const navigate = useNavigate();
+
     const agents = location.state?.agents || [];
     const city = location.state?.city || "";
     const area = location.state?.area || "";
-    const customers = location.state?.customers || [];
-    const selectedCustomers = location.state?.selectedCustomers || [];
-    const navigate = useNavigate();
+    const propertyTypeId = location.state?.propertyTypeId || "";
+    const selectedAgents = location.state?.selectedAgents || [];
+    const allAgents = location.state?.allAgents || [];
 
     const amountPerAgent = 30;
     const totalAmount = agents.length * amountPerAgent;
@@ -16,7 +18,13 @@ export default function Payment() {
     const [showMobilePopup, setShowMobilePopup] = useState(false);
     const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
-  return (
+    useEffect(() => {
+        if (!location.state || agents.length === 0) {
+            navigate("/home", { replace: true });
+        }
+    }, []);
+
+    return (
         <div className="min-h-screen flex flex-col"
             style={{ background: 'linear-gradient(135deg, #fff7f3 0%, #ffe8dc 50%, #fff7f3 100%)' }}>
 
@@ -54,14 +62,12 @@ export default function Payment() {
                     <div style={{ background: '#fff', border: '1px solid #fdd9c8' }}
                         className="rounded-3xl overflow-hidden shadow-lg">
 
-                        {/* Table Header */}
                         <div style={{ background: '#fff8f5', borderBottom: '1px solid #fdd9c8' }}
                             className="grid grid-cols-2 px-6 py-4">
                             <div style={{ color: '#7c2d12' }} className="font-bold text-sm">Selected Agents</div>
                             <div style={{ color: '#7c2d12' }} className="font-bold text-sm text-right">Amount</div>
                         </div>
 
-                        {/* Agent Rows */}
                         {agents.map((agent) => (
                             <div key={agent._id}
                                 style={{ borderBottom: '1px solid #fdd9c8' }}
@@ -75,7 +81,6 @@ export default function Payment() {
                             </div>
                         ))}
 
-                        {/* Total Row */}
                         <div style={{ background: '#fff8f5' }}
                             className="grid grid-cols-2 px-6 py-5">
                             <div style={{ color: '#7c2d12' }} className="font-extrabold text-lg">Total Amount</div>
@@ -92,7 +97,7 @@ export default function Payment() {
                             Proceed To Pay →
                         </button>
                         <button
-                            onClick={() => navigate("/home", { state: { city, area, customers, selectedCustomers } })}
+                            onClick={() => navigate("/home", { state: { city, area, propertyTypeId, agents:allAgents, selectedAgents } })}
                             style={{ borderColor: '#fdd9c8', color: '#c2511f' }}
                             className="flex-1 border-2 py-3 rounded-xl text-sm font-bold hover:bg-orange-50 transition">
                             Cancel
@@ -123,17 +128,7 @@ export default function Payment() {
                         <button
                             onClick={() => {
                                 setShowMobilePopup(false);
-                                navigate("/phoneform", {
-                                    state: {
-                                        agents,
-                                        city,
-                                        area,
-                                        customers,
-                                        selectedCustomers,
-                                        propertyType:
-                                            location.state?.propertyType
-                                    }
-                                });
+                                navigate("/phoneform", { state: { agents, city, area } });
                             }}
                             style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
                             className="w-full text-white py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition">
