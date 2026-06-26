@@ -29,8 +29,7 @@ const locationRoutes =
   locationRoutes
 );
 
-const propertyTypeRoutes =
-require("./routes/propertyTypeRoutes");
+
 
 app.use(
   "/api/property-types",
