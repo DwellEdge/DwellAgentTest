@@ -1,17 +1,5 @@
 const Agent = require("../models/Agent");
 
-const getAgents = async (req, res) => {
-  try {
-    const agents = await Agent.find();
-
-    res.json(agents);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
 const createAgent = async (req, res) => {
   try {
     const agent = await Agent.create(req.body);
@@ -44,17 +32,17 @@ const getAgents = async (req, res) => {
     // If propertyTypeId filter applied, show only that count
     if (propertyTypeId) {
       agents = agents
-        .map(agent => {
+        .map((agent) => {
           const matchedType = agent.propertyTypes.find(
-            pt => pt.propertyTypeId === propertyTypeId
+            (pt) => pt.propertyTypeId === propertyTypeId
           );
           return {
             ...agent.toObject(),
             filteredCount: matchedType ? matchedType.count : 0,
-            filteredPropertyType: matchedType ? matchedType.propertyType : null
+            filteredPropertyType: matchedType ? matchedType.propertyType : null,
           };
         })
-        .filter(agent => agent.filteredCount > 0); // hide agents with 0
+        .filter((agent) => agent.filteredCount > 0); // hide agents with 0
     }
 
     res.json(agents);

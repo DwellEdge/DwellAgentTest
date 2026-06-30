@@ -4,6 +4,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 export default function PhoneForm() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // The selected agents passed from Payment.jsx — these ARE the "selected
+  // customers" for this transaction
   const agents = location.state?.agents || [];
 
   const [name, setName] = useState("");
@@ -13,22 +16,9 @@ export default function PhoneForm() {
 
   const city = location.state?.city || "";
   const area = location.state?.area || "";
-  const propertyType =
-    location.state?.propertyType || "";
-
-  const customers =
-    location.state?.customers || [];
-
-  const selectedCustomers =
-    location.state?.selectedCustomers || [];
-
-  const selectedCustomer =
-    customers.find(
-      customer =>
-        selectedCustomers.includes(
-          customer._id
-        )
-    );
+  const propertyTypeId = location.state?.propertyTypeId || "";
+  const propertyTypeName =
+    location.state?.propertyTypeName || agents[0]?.propertyTypeName || "";
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -44,7 +34,6 @@ export default function PhoneForm() {
     setStatus("Sending...");
 
     try {
-      // Send WhatsApp & SMS + Save to DB
       const res = await fetch("http://localhost:5002/api/send-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -54,78 +43,45 @@ export default function PhoneForm() {
       const data = await res.json();
 
       if (data.success) {
-
         try {
+          const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5002";
 
-          const API_BASE =
-            import.meta.env.VITE_API_URL ||
-            "http://localhost:5002";
+          const agentSelections = agents.map((agent) => ({
+            agentId: agent._id,
+            propertyTypeId: agent.propertyTypeId || "",
+            propertyType: agent.propertyTypeName || "",
+          }));
 
-          await fetch(
-            `${API_BASE}/api/transactions`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-              body: JSON.stringify({
-                transactionId:
-                  `TXN${Date.now()}`,
+          // distinct purposes across this checkout, e.g. "Rent, Lease"
+          const propertyTypeSummary = [
+            ...new Set(agentSelections.map((s) => s.propertyType).filter(Boolean)),
+          ].join(", ");
 
-                city:
-                  location.state?.city,
-
-                area:
-                  location.state?.area,
-
-                customerId:
-                  selectedCustomer?.Id ||
-                  selectedCustomer?.id ||
-                  null,
-
-                noOfAgentsSelected:
-                  agents.length,
-
-                agentIds:
-                  agents.map(
-                    agent =>
-                      agent.agentId ||
-                      agent.agentid
-                  ),
-
-                propertyType,
-
-                mobileNumber:
-                  phone,
-
-                amountReceived:
-                  agents.length * 30,
-              }),
-            }
-          );
-
-          console.log("Selected Customer:", selectedCustomer);
-
+          await fetch(`${API_BASE}/api/transactions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              transactionId: `TXN${Date.now()}`,
+              city,
+              area,
+              propertyType: propertyTypeSummary,
+              agentSelections,
+              noOfAgentsSelected: agents.length,
+              agentIds: agents.map((agent) => agent._id),
+              mobileNumber: phone,
+              amountReceived: agents.length * 30,
+            }),
+          });
         } catch (err) {
-          console.error(
-            "Transaction save error",
-            err
-          );
+          console.error("Transaction save error", err);
         }
 
         setShowSuccessPopup(true);
         setName("");
         setPhone("");
         setStatus("");
-
       } else {
-
-        setStatus(
-          "❌ Failed: " +
-          data.error
-        );
-
+        setStatus("❌ Failed: " + data.error);
       }
     } catch (err) {
       setStatus("❌ Server error");
