@@ -8,7 +8,10 @@ const connectDB = require("./config/db");
 const agentRoutes = require("./routes/agentRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const messageRoutes = require("./routes/messageRoutes");
-const propertyTypeRoutes = require("./routes/propertyType");
+const propertyTypeGetRoutes = require("./routes/propertyType");
+const propertyTypeCreateRoutes = require("./routes/propertyTypeRoutes");
+const locationRoutes = require("./routes/locationRoutes");
+const transactionHistoryRoutes = require("./routes/transactionHistoryRoutes");
 
 const app = express();
 
@@ -21,6 +24,10 @@ app.get("/", (req, res) => {
   res.send("Server Running");
 });
 
+app.use("/api", locationRoutes);
+app.use("/api/property-types", propertyTypeGetRoutes);
+app.use("/api/property-types", propertyTypeCreateRoutes);
+app.use("/api/transactions", transactionHistoryRoutes);
 const locationRoutes =
   require("./routes/locationRoutes");
 
@@ -47,12 +54,9 @@ app.use(
 app.use("/api/agents", agentRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api", messageRoutes);
-app.use("/api/property-types", propertyTypeRoutes);
 
 const PORT = process.env.PORT || 5002;
 
 app.listen(PORT, () => {
-  console.log(
-    `Server Running On Port ${PORT}`
-  );
+  console.log(`Server Running On Port ${PORT}`);
 });

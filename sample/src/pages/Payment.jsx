@@ -69,11 +69,16 @@ export default function Payment() {
                         </div>
 
                         {agents.map((agent) => (
-                            <div key={agent._id}
+                            <div key={agent.rowKey || agent._id}
                                 style={{ borderBottom: '1px solid #fdd9c8' }}
                                 className="grid grid-cols-2 px-6 py-4">
                                 <div style={{ color: '#7c2d12' }} className="text-sm font-medium">
                                     {agent.firstName} {agent.lastName}
+                                    {agent.propertyTypeName && (
+                                        <span style={{ color: '#a8674a' }} className="ml-2 text-xs font-normal">
+                                            ({agent.propertyTypeName})
+                                        </span>
+                                    )}
                                 </div>
                                 <div style={{ color: '#e8724a' }} className="text-sm font-semibold text-right">
                                     ₹{amountPerAgent}
@@ -94,10 +99,10 @@ export default function Payment() {
                             onClick={() => setShowMobilePopup(true)}
                             style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
                             className="flex-1 text-white py-3 rounded-xl text-sm font-bold shadow-lg hover:opacity-90 transition">
-                            Proceed To Pay →
+                            Continue →
                         </button>
                         <button
-                            onClick={() => navigate("/home", { state: { city, area, propertyTypeId, agents:allAgents, selectedAgents } })}
+                            onClick={() => navigate("/home", { state: { city, area, propertyTypeId, agents: allAgents, selectedAgents } })}
                             style={{ borderColor: '#fdd9c8', color: '#c2511f' }}
                             className="flex-1 border-2 py-3 rounded-xl text-sm font-bold hover:bg-orange-50 transition">
                             Cancel
@@ -118,7 +123,7 @@ export default function Payment() {
                             💳
                         </div>
 
-                        <h2 style={{ color: '#7c2d12' }} className="text-xl font-extrabold mb-2">Confirm Payment</h2>
+                        <h2 style={{ color: '#7c2d12' }} className="text-xl font-extrabold mb-2">Confirm Your Details</h2>
                         <p style={{ color: '#a8674a' }} className="text-sm mb-6 leading-relaxed">
                             Proceed to enter your details and receive agent contacts via SMS & WhatsApp.
                         </p>
@@ -128,7 +133,15 @@ export default function Payment() {
                         <button
                             onClick={() => {
                                 setShowMobilePopup(false);
-                                navigate("/phoneform", { state: { agents, city, area } });
+                                navigate("/phoneform", {
+                                    state: {
+                                        agents,
+                                        city,
+                                        area,
+                                        propertyTypeId,
+                                        propertyTypeName: agents[0]?.propertyTypeName || "",
+                                    },
+                                });
                             }}
                             style={{ background: 'linear-gradient(135deg, #e8724a, #f59e6c)' }}
                             className="w-full text-white py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition">
@@ -166,7 +179,7 @@ export default function Payment() {
 
                         <div className="flex flex-col gap-4">
                             {agents.map((agent) => (
-                                <div key={agent._id}
+                                <div key={agent.rowKey || agent._id}
                                     style={{ background: '#fff8f5', border: '1px solid #fdd9c8' }}
                                     className="rounded-2xl p-4">
                                     <div style={{ color: '#7c2d12' }} className="font-bold text-sm">

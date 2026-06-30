@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -14,12 +14,23 @@ export default function Home() {
 
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
-  const [agents, setAgents] = useState([]);
+
+  // Full cache of every (agent, purpose) row ever fetched in this session.
+  // Each entry: { rowKey, _id, firstName, lastName, area, propertyTypeId, propertyTypeName, filteredCount }
+  const [agentRows, setAgentRows] = useState([]);
+  // rowKeys (agentId::purposeId) the user has checked — preserved even when
+  // a purpose is temporarily deselected, so re-selecting it restores the tick.
   const [selectedAgents, setSelectedAgents] = useState([]);
   const [propertyTypes, setPropertyTypes] = useState([]);
-  const [selectedPropertyTypeId, setSelectedPropertyTypeId] = useState("P01");
+  const [selectedPropertyTypeIds, setSelectedPropertyTypeIds] = useState([]);
+
+  // rowKeys (agentId::purposeId) previously chosen by ANY user for this
+  // city/area/purpose — used to sink already-picked agents to the bottom
+  const [previouslySelectedKeys, setPreviouslySelectedKeys] = useState(new Set());
 
   const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5002";
+
+  const makeRowKey = (agentId, ptId) => `${agentId}::${ptId}`;
 
   const fetchCities = async (searchValue) => {
     const query = searchValue?.trim();
@@ -60,30 +71,93 @@ export default function Home() {
     }
   };
 
-  const fetchAgents = async () => {
+  // Fetch agents for every selected purpose. Each purpose's results become
+  // their own rows (one row per agent+purpose), merged into the existing
+  // cache so previously fetched purposes/selections aren't lost. Also fetches
+  // which agents were previously chosen (by any user) for this city/area/purpose,
+  // so they can be sunk to the bottom of the results.
+  const fetchAgents = useCallback(async () => {
     if (!selectedCity || !area) {
       alert("Please select both city and area");
       return;
     }
+    if (selectedPropertyTypeIds.length === 0) {
+      alert("Please select at least one purpose");
+      return;
+    }
+
     try {
       setLoading(true);
       setSearchPerformed(true);
-      const res = await axios.get(`${API_BASE}/api/agents`, {
-        params: {
-          city: selectedCity,
-          area,
-          propertyTypeId: selectedPropertyTypeId,
-        },
-        timeout: 5000,
+
+      const responses = await Promise.all(
+        selectedPropertyTypeIds.map((ptId) =>
+          axios
+            .get(`${API_BASE}/api/agents`, {
+              params: { city: selectedCity, area, propertyTypeId: ptId },
+              timeout: 5000,
+            })
+            .then((res) => ({ ptId, data: res.data || [] }))
+            .catch((err) => {
+              console.error(`Failed to fetch agents for ${ptId}:`, err.message);
+              return { ptId, data: [] };
+            })
+        )
+      );
+
+      setAgentRows((prevRows) => {
+        const merged = new Map(prevRows.map((r) => [r.rowKey, r]));
+
+        responses.forEach(({ ptId, data }) => {
+          const ptName =
+            propertyTypes.find((t) => t.propertyTypeId === ptId)?.propertyType || ptId;
+
+          data.forEach((record) => {
+            const rowKey = makeRowKey(record._id, ptId);
+            merged.set(rowKey, {
+              rowKey,
+              _id: record._id,
+              firstName: record.firstName,
+              lastName: record.lastName,
+              area: record.area,
+              propertyTypeId: ptId,
+              propertyTypeName: ptName,
+              filteredCount: record.filteredCount ?? 0,
+            });
+          });
+        });
+
+        return Array.from(merged.values());
       });
-      setAgents(res.data || []);
+
+      const prevResponses = await Promise.all(
+        selectedPropertyTypeIds.map((ptId) =>
+          axios
+            .get(`${API_BASE}/api/transactions/previous-agents`, {
+              params: { city: selectedCity, area, propertyTypeId: ptId },
+              timeout: 5000,
+            })
+            .then((res) => ({ ptId, agentIds: res.data || [] }))
+            .catch((err) => {
+              console.error(`Failed to fetch previous agents for ${ptId}:`, err.message);
+              return { ptId, agentIds: [] };
+            })
+        )
+      );
+
+      setPreviouslySelectedKeys((prev) => {
+        const next = new Set(prev);
+        prevResponses.forEach(({ ptId, agentIds }) => {
+          agentIds.forEach((agentId) => next.add(makeRowKey(agentId, ptId)));
+        });
+        return next;
+      });
     } catch (err) {
       console.error("Failed to fetch agents:", err.message);
-      setAgents([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_BASE, selectedCity, area, selectedPropertyTypeIds, propertyTypes]);
 
   // Reload detection — runs only once on mount
   useEffect(() => {
@@ -91,15 +165,16 @@ export default function Home() {
     if (isReload) {
       setCity("");
       setArea("");
-      setAgents([]);
+      setAgentRows([]);
       setSelectedAgents([]);
       setSelectedCity("");
       setSearchPerformed(false);
+      setPreviouslySelectedKeys(new Set());
       window.history.replaceState(null, "");
     }
   }, []);
 
-  // Restore state when navigating back from Payment — runs every time location.state changes
+  // Restore state when navigating back from Payment
   useEffect(() => {
     const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
     if (isReload) return;
@@ -107,12 +182,14 @@ export default function Home() {
     if (location.state) {
       setCity(location.state.city || "");
       setArea(location.state.area || "");
-      setAgents(location.state.agents || []);
+      setAgentRows(location.state.agentRows || []);
       setSelectedAgents(location.state.selectedAgents || []);
       setSelectedCity(location.state.city || "");
-      setSearchPerformed(location.state.agents?.length > 0);
-      if (location.state.propertyTypeId) {
-        setSelectedPropertyTypeId(location.state.propertyTypeId);
+      setSearchPerformed((location.state.agentRows || []).length > 0);
+      if (location.state.propertyTypeIds) {
+        setSelectedPropertyTypeIds(location.state.propertyTypeIds);
+      } else if (location.state.propertyTypeId) {
+        setSelectedPropertyTypeIds([location.state.propertyTypeId]);
       }
     }
   }, [location.state]);
@@ -123,28 +200,39 @@ export default function Home() {
     }
   }, [selectedCity]);
 
-  // Fetch property types from API
+  // Fetch property types from API, default to first one selected
   useEffect(() => {
     axios
       .get(`${API_BASE}/api/property-types`)
-      .then((res) => setPropertyTypes(res.data || []))
+      .then((res) => {
+        const types = res.data || [];
+        setPropertyTypes(types);
+        setSelectedPropertyTypeIds((prev) =>
+          prev.length > 0 ? prev : types[0] ? [types[0].propertyTypeId] : []
+        );
+      })
       .catch((err) => console.error("Failed to load property types", err));
   }, []);
 
-  // Re-fetch agents when purpose changes (only if search already done)
+  // Re-fetch agents whenever the set of selected purposes changes (only if
+  // a search has already been performed). Rows already cached for a purpose
+  // are reused via the merge in fetchAgents — no data loss on toggling.
   useEffect(() => {
     if (selectedCity && area && searchPerformed) {
       fetchAgents();
     }
-  }, [selectedPropertyTypeId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPropertyTypeIds]);
 
   const handleCityChange = (val) => {
     setCity(val);
     setSelectedCity("");
     setArea("");
     setAreaSuggestions([]);
-    setAgents([]);
+    setAgentRows([]);
+    setSelectedAgents([]);
     setSearchPerformed(false);
+    setPreviouslySelectedKeys(new Set());
     if (val.length > 0) {
       fetchCities(val);
     } else {
@@ -157,8 +245,10 @@ export default function Home() {
     setSelectedCity(cityName);
     setCitySuggestions([]);
     setArea("");
-    setAgents([]);
+    setAgentRows([]);
+    setSelectedAgents([]);
     setSearchPerformed(false);
+    setPreviouslySelectedKeys(new Set());
   };
 
   const handleAreaChange = (val) => {
@@ -175,16 +265,40 @@ export default function Home() {
     fetchAgents();
   };
 
+  const togglePurpose = (propertyTypeId) => {
+    setSelectedPropertyTypeIds((prev) => {
+      if (prev.includes(propertyTypeId)) {
+        if (prev.length === 1) return prev; // keep at least one purpose active
+        return prev.filter((id) => id !== propertyTypeId);
+      }
+      return [...prev, propertyTypeId];
+    });
+  };
+
+  // Only rows matching a currently-selected purpose are shown/counted.
+  // Deselecting a purpose hides its rows immediately (no re-fetch needed);
+  // reselecting it brings them back from cache, ticks intact.
+  // Rows previously selected (by any user) for this city/area/purpose are
+  // sorted to the bottom, while preserving original order otherwise.
+  const visibleRows = agentRows
+    .filter((row) => selectedPropertyTypeIds.includes(row.propertyTypeId))
+    .slice()
+    .sort((a, b) => {
+      const aPrev = previouslySelectedKeys.has(a.rowKey) ? 1 : 0;
+      const bPrev = previouslySelectedKeys.has(b.rowKey) ? 1 : 0;
+      return aPrev - bPrev;
+    });
+
   const handleContinue = () => {
-    const chosenAgents = agents.filter((item) =>
-      selectedAgents.includes(item._id)
-    );
+    // Only carry forward selections that belong to a currently active purpose
+    const chosenRows = visibleRows.filter((row) => selectedAgents.includes(row.rowKey));
     navigate("/payment", {
       state: {
-        agents: chosenAgents,
+        agents: chosenRows,
+        agentRows,
         city,
         area,
-        propertyTypeId: selectedPropertyTypeId,
+        propertyTypeIds: selectedPropertyTypeIds,
         selectedAgents,
       },
     });
@@ -194,18 +308,19 @@ export default function Home() {
     setSelectedAgents([]);
   };
 
-  const toggleAgentSelection = (agentId) => {
-    setSelectedAgents((prev) => {
-      if (prev.includes(agentId)) {
-        return prev.filter((id) => id !== agentId);
-      }
-      return [...prev, agentId];
-    });
+  // Toggling one row never affects the same agent's row under a different purpose
+  const toggleAgentSelection = (rowKey) => {
+    setSelectedAgents((prev) =>
+      prev.includes(rowKey) ? prev.filter((k) => k !== rowKey) : [...prev, rowKey]
+    );
   };
 
-  const selectedPurposeName =
-    propertyTypes.find((t) => t.propertyTypeId === selectedPropertyTypeId)
-      ?.propertyType || "Rent";
+  const selectedPurposeNames = propertyTypes
+    .filter((t) => selectedPropertyTypeIds.includes(t.propertyTypeId))
+    .map((t) => t.propertyType);
+
+  const selectedPurposeLabel =
+    selectedPurposeNames.length > 0 ? selectedPurposeNames.join(", ") : "Rent";
 
   return (
     <div
@@ -244,7 +359,6 @@ export default function Home() {
       <main className="flex flex-col items-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="w-full max-w-5xl">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-
             {/* City Input */}
             <div className="relative w-full">
               <div className="flex items-center gap-3 rounded-full bg-white p-2 shadow-lg shadow-orange-100/70 ring-1 ring-orange-100">
@@ -274,7 +388,6 @@ export default function Home() {
               )}
             </div>
 
-            {/* City not found */}
             {city.length > 1 && citySuggestions.length === 0 && !selectedCity && (
               <p className="text-sm mt-1 ml-2" style={{ color: "#a8674a" }}>
                 No cities found for "<span className="font-semibold">{city}</span>". Try a different name.
@@ -318,7 +431,6 @@ export default function Home() {
               )}
             </div>
 
-            {/* Search Button — no dropdown, just the button */}
             <div className="flex justify-end mt-1">
               <button
                 type="submit"
@@ -339,27 +451,31 @@ export default function Home() {
             </div>
           </form>
 
-          {/* Purpose Buttons */}
+          {/* Purpose Buttons — multi-select */}
           <div className="mt-4">
             <label style={{ color: "#7c2d12", fontWeight: "bold", fontSize: "14px" }}>
-              Purpose
+              Purpose (select one or more)
             </label>
             <div className="flex gap-3 mt-2 flex-wrap">
-              {propertyTypes.map((type) => (
-                <button
-                  key={type.propertyTypeId}
-                  type="button"
-                  onClick={() => setSelectedPropertyTypeId(type.propertyTypeId)}
-                  style={
-                    selectedPropertyTypeId === type.propertyTypeId
-                      ? { background: "linear-gradient(135deg, #e8724a, #f59e6c)", color: "#fff" }
-                      : { background: "#fff", color: "#c2511f", border: "1px solid #fdd9c8" }
-                  }
-                  className="px-5 py-2 rounded-full text-sm font-bold shadow-sm transition hover:opacity-90"
-                >
-                  {type.propertyType}
-                </button>
-              ))}
+              {propertyTypes.map((type) => {
+                const isActive = selectedPropertyTypeIds.includes(type.propertyTypeId);
+                return (
+                  <button
+                    key={type.propertyTypeId}
+                    type="button"
+                    onClick={() => togglePurpose(type.propertyTypeId)}
+                    style={
+                      isActive
+                        ? { background: "linear-gradient(135deg, #e8724a, #f59e6c)", color: "#fff" }
+                        : { background: "#fff", color: "#c2511f", border: "1px solid #fdd9c8" }
+                    }
+                    className="px-5 py-2 rounded-full text-sm font-bold shadow-sm transition hover:opacity-90 flex items-center gap-2"
+                  >
+                    {isActive && <span>✓</span>}
+                    {type.propertyType}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -372,19 +488,18 @@ export default function Home() {
               Area: {area || "Not selected"}
             </span>
             <span className="rounded-full bg-orange-50 px-4 py-2 text-sm font-medium text-slate-600 ring-1 ring-orange-100">
-              Purpose: {selectedPurposeName}
+              Purpose: {selectedPurposeLabel}
             </span>
           </div>
 
-          {/* Loader */}
           {loading && (
             <div className="mt-6 flex justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e8724a]"></div>
             </div>
           )}
 
-          {/* No Results */}
-          {searchPerformed && !loading && agents.length === 0 && (
+          {/* No Results — based on the currently-visible (purpose-filtered) rows */}
+          {searchPerformed && !loading && visibleRows.length === 0 && (
             <div className="mt-6 rounded-3xl border border-orange-100 bg-white p-10 text-center shadow-lg">
               <div className="text-5xl mb-4">🏠</div>
               <h3 style={{ color: "#7c2d12" }} className="text-xl font-extrabold mb-2">
@@ -394,7 +509,7 @@ export default function Home() {
                 We couldn't find any agents in{" "}
                 <span className="font-bold">{area ? area.split(",")[0].trim() : ""}</span>,{" "}
                 <span className="font-bold">{city ? city.split(",")[0].trim() : ""}</span>{" "}
-                for {selectedPurposeName}.
+                for {selectedPurposeLabel}.
               </p>
               <p style={{ color: "#a8674a" }} className="text-sm">
                 Try searching a different city, area, or purpose.
@@ -402,34 +517,35 @@ export default function Home() {
             </div>
           )}
 
-          {/* Results */}
-          {agents.length > 0 && (
+          {/* Results — one row per (agent, purpose), filtered to active purposes,
+              previously-selected agents sorted to the bottom (no visible label) */}
+          {visibleRows.length > 0 && (
             <div className="mt-6 overflow-hidden rounded-3xl bg-white text-slate-800 shadow-xl border border-orange-100">
               <div className="border-b border-orange-100 bg-orange-50/50 px-6 py-4 text-sm font-bold text-slate-700">
-                Results ({agents.length})
+                Results ({visibleRows.length})
               </div>
 
               <div className="divide-y divide-orange-100">
-                {agents.map((record) => (
+                {visibleRows.map((row) => (
                   <label
-                    key={record._id}
+                    key={row.rowKey}
                     className="flex items-center gap-4 px-6 py-4 hover:bg-orange-50/30 transition cursor-pointer"
                   >
                     <input
                       type="checkbox"
-                      checked={selectedAgents.includes(record._id)}
-                      onChange={() => toggleAgentSelection(record._id)}
+                      checked={selectedAgents.includes(row.rowKey)}
+                      onChange={() => toggleAgentSelection(row.rowKey)}
                       className="h-5 w-5 accent-[#e8724a]"
                     />
                     <div className="flex-1">
                       <div className="font-bold text-slate-800">
-                        {record.firstName} {record.lastName}
+                        {row.firstName} {row.lastName}
                       </div>
                       <div className="text-sm text-slate-500">
-                        Area: {record.area}
+                        Area: {row.area}
                       </div>
                       <div className="text-sm text-[#c2511f] font-semibold mt-0.5">
-                        {selectedPurposeName} Properties: {record.filteredCount ?? 0}
+                        {row.propertyTypeName}: {row.filteredCount}
                       </div>
                     </div>
                   </label>
