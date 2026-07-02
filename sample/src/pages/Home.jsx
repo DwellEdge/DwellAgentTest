@@ -15,18 +15,12 @@ export default function Home() {
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
 
-  // Full cache of every (agent, purpose) row ever fetched in this session.
-  // Each entry: { rowKey, _id, firstName, lastName, area, propertyTypeId, propertyTypeName, filteredCount }
   const [agentRows, setAgentRows] = useState([]);
-  // rowKeys (agentId::purposeId) the user has checked — preserved even when
-  // a purpose is temporarily deselected, so re-selecting it restores the tick.
   const [selectedAgents, setSelectedAgents] = useState([]);
   const [propertyTypes, setPropertyTypes] = useState([]);
   const [selectedPropertyTypeIds, setSelectedPropertyTypeIds] = useState([]);
-
-  // rowKeys (agentId::purposeId) previously chosen by ANY user for this
-  // city/area/purpose — used to sink already-picked agents to the bottom
   const [previouslySelectedKeys, setPreviouslySelectedKeys] = useState(new Set());
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
   const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5002";
 
@@ -71,11 +65,6 @@ export default function Home() {
     }
   };
 
-  // Fetch agents for every selected purpose. Each purpose's results become
-  // their own rows (one row per agent+purpose), merged into the existing
-  // cache so previously fetched purposes/selections aren't lost. Also fetches
-  // which agents were previously chosen (by any user) for this city/area/purpose,
-  // so they can be sunk to the bottom of the results.
   const fetchAgents = useCallback(async () => {
     if (!selectedCity || !area) {
       alert("Please select both city and area");
@@ -159,7 +148,7 @@ export default function Home() {
     }
   }, [API_BASE, selectedCity, area, selectedPropertyTypeIds, propertyTypes]);
 
-  // Reload detection — runs only once on mount
+  // Reload detection
   useEffect(() => {
     const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
     if (isReload) {
@@ -200,7 +189,6 @@ export default function Home() {
     }
   }, [selectedCity]);
 
-  // Fetch property types from API, default to first one selected
   useEffect(() => {
     axios
       .get(`${API_BASE}/api/property-types`)
@@ -214,9 +202,6 @@ export default function Home() {
       .catch((err) => console.error("Failed to load property types", err));
   }, []);
 
-  // Re-fetch agents whenever the set of selected purposes changes (only if
-  // a search has already been performed). Rows already cached for a purpose
-  // are reused via the merge in fetchAgents — no data loss on toggling.
   useEffect(() => {
     if (selectedCity && area && searchPerformed) {
       fetchAgents();
@@ -265,21 +250,21 @@ export default function Home() {
     fetchAgents();
   };
 
+  // When a purpose is deselected, also clear any selections belonging to it
   const togglePurpose = (propertyTypeId) => {
     setSelectedPropertyTypeIds((prev) => {
       if (prev.includes(propertyTypeId)) {
-        if (prev.length === 1) return prev; // keep at least one purpose active
+        if (prev.length === 1) return prev;
+        // Clear selections for this purpose
+        setSelectedAgents((prevSelected) =>
+          prevSelected.filter((key) => !key.endsWith(`::${propertyTypeId}`))
+        );
         return prev.filter((id) => id !== propertyTypeId);
       }
       return [...prev, propertyTypeId];
     });
   };
 
-  // Only rows matching a currently-selected purpose are shown/counted.
-  // Deselecting a purpose hides its rows immediately (no re-fetch needed);
-  // reselecting it brings them back from cache, ticks intact.
-  // Rows previously selected (by any user) for this city/area/purpose are
-  // sorted to the bottom, while preserving original order otherwise.
   const visibleRows = agentRows
     .filter((row) => selectedPropertyTypeIds.includes(row.propertyTypeId))
     .slice()
@@ -290,25 +275,33 @@ export default function Home() {
     });
 
   const handleContinue = () => {
-    // Only carry forward selections that belong to a currently active purpose
+    setShowConfirmPopup(true);
+  };
+
+  const handleConfirmProceed = () => {
     const chosenRows = visibleRows.filter((row) => selectedAgents.includes(row.rowKey));
-    navigate("/payment", {
+    setShowConfirmPopup(false);
+    navigate("/phoneform", {
       state: {
         agents: chosenRows,
-        agentRows,
         city,
         area,
-        propertyTypeIds: selectedPropertyTypeIds,
+        propertyTypeId: selectedPropertyTypeIds[0] || "",
+        propertyTypeName: chosenRows[0]?.propertyTypeName || "",
+        agentRows,
         selectedAgents,
       },
     });
+  };
+
+  const handleConfirmCancel = () => {
+    setShowConfirmPopup(false);
   };
 
   const handleCancel = () => {
     setSelectedAgents([]);
   };
 
-  // Toggling one row never affects the same agent's row under a different purpose
   const toggleAgentSelection = (rowKey) => {
     setSelectedAgents((prev) =>
       prev.includes(rowKey) ? prev.filter((k) => k !== rowKey) : [...prev, rowKey]
@@ -451,7 +444,7 @@ export default function Home() {
             </div>
           </form>
 
-          {/* Purpose Buttons — multi-select */}
+          {/* Purpose Buttons */}
           <div className="mt-4">
             <label style={{ color: "#7c2d12", fontWeight: "bold", fontSize: "14px" }}>
               Purpose (select one or more)
@@ -498,7 +491,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* No Results — based on the currently-visible (purpose-filtered) rows */}
           {searchPerformed && !loading && visibleRows.length === 0 && (
             <div className="mt-6 rounded-3xl border border-orange-100 bg-white p-10 text-center shadow-lg">
               <div className="text-5xl mb-4">🏠</div>
@@ -517,8 +509,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* Results — one row per (agent, purpose), filtered to active purposes,
-              previously-selected agents sorted to the bottom (no visible label) */}
+          {/* Results */}
           {visibleRows.length > 0 && (
             <div className="mt-6 overflow-hidden rounded-3xl bg-white text-slate-800 shadow-xl border border-orange-100">
               <div className="border-b border-orange-100 bg-orange-50/50 px-6 py-4 text-sm font-bold text-slate-700">
@@ -587,6 +578,51 @@ export default function Home() {
           )}
         </div>
       </main>
+
+      {/* Confirm Your Details popup */}
+      {showConfirmPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(124, 45, 18, 0.3)", backdropFilter: "blur(4px)" }}
+        >
+          <div
+            style={{ background: "#fff", border: "1px solid #fdd9c8" }}
+            className="w-full max-w-md rounded-3xl p-8 shadow-2xl mx-4"
+          >
+            <div
+              style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow mb-4"
+            >
+              💳
+            </div>
+
+            <h2 style={{ color: "#7c2d12" }} className="text-xl font-extrabold mb-2">
+              Confirm Your Details
+            </h2>
+            <p style={{ color: "#a8674a" }} className="text-sm mb-6 leading-relaxed">
+              Proceed to enter your details and receive agent contacts via SMS & WhatsApp.
+            </p>
+
+            <div style={{ background: "#fdd9c8" }} className="w-full h-px mb-6" />
+
+            <button
+              onClick={handleConfirmProceed}
+              style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
+              className="w-full text-white py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition"
+            >
+              Continue →
+            </button>
+
+            <button
+              onClick={handleConfirmCancel}
+              style={{ borderColor: "#fdd9c8", color: "#c2511f" }}
+              className="mt-3 w-full border-2 py-3 rounded-xl text-sm font-bold hover:bg-orange-50 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
