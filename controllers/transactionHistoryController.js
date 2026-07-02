@@ -56,7 +56,36 @@ const getTransactions = async (req, res) => {
   }
 };
 
+const getPreviousAgents = async (req, res) => {
+  try {
+    const { city, area, propertyTypeId } = req.query;
+
+    const transactions = await TransactionHistory.find({
+      city,
+      area,
+      propertyType: propertyTypeId,
+    });
+
+    const agentIds = [
+      ...new Set(
+        transactions.flatMap((t) => t.agentIds || [])
+      ),
+    ];
+
+    res.json(agentIds);
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+
+  }
+};
+
 module.exports = {
   createTransaction,
   getTransactions,
+  getPreviousAgents,
 };
