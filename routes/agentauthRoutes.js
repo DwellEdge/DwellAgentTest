@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
-const { registerAgent, loginAgent } = require("../controllers/agentAuthController");
+const { registerAgent, loginAgent } = require("../controllers/agentauthController");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
