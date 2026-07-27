@@ -1,6 +1,7 @@
 const Agent = require("../models/Agent");
 const bcrypt = require("bcrypt");
 const sendWelcomeEmail = require("../services/emailService");
+const client = require("../services/twilioService");
 
 const registerAgent = async (req, res) => {
   try {
@@ -43,6 +44,9 @@ const registerAgent = async (req, res) => {
     const nextIndex = maxIndex + 1;
     const agentId = `A${String(nextIndex).padStart(2, "0")}`;
 
+    // Generate login ID: firstName + agentId (e.g. BalajiA01)
+    const loginId = `${firstName.trim()}${agentId}`;
+
     const agent = await Agent.create({
       agentId,
       firstName: firstName.trim(),
@@ -55,15 +59,13 @@ const registerAgent = async (req, res) => {
       photo,
       idDocument,
       password: hashedPassword,
+      loginId,
       propertyTypes: [],
     });
 
     // ===========================
     // SEND WELCOME EMAIL
     // ===========================
-
-    // ===========================
-
     try {
       await sendWelcomeEmail({
         email: agent.email,
@@ -73,17 +75,33 @@ const registerAgent = async (req, res) => {
       console.log("Welcome email sent.");
     } catch (emailError) {
       console.log("Email Error:", emailError.message);
-
       // Don't stop registration if email fails
     }
 
     // ===========================
+    // SEND WELCOME SMS
+    // ===========================
+    const smsMessage =
+      `Welcome to DwellEdge let grow the business through mutual co-operation! below are the important details\n` +
+      `Dwelledge link to publish the property: http://localhost:5173/agent-login\n` +
+      `login id: ${loginId}\n` +
+      `Registered email: ${email.toLowerCase().trim()}`;
+
+    try {
+      await client.messages.create({
+        body: smsMessage,
+        from: process.env.TWILIO_PHONE,
+        to: `+91${mobileNumber.trim()}`,
+      });
+    } catch (smsErr) {
+      // SMS failure shouldn't block registration success
+      console.error("SMS send error:", smsErr.message);
+    }
 
     res.status(201).json({
       success: true,
       data: agent,
     });
-
   } catch (error) {
     console.error("Register error:", error.message);
 
@@ -138,7 +156,6 @@ const loginAgent = async (req, res) => {
       success: true,
       agent: agentData,
     });
-
   } catch (error) {
     console.error("Login error:", error.message);
 
