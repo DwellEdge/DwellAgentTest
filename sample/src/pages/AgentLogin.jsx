@@ -69,7 +69,7 @@ const AgentLogin = () => {
               💼
             </div>
             <h1 style={{ color: "#7c2d12" }} className="text-3xl lg:text-4xl font-extrabold leading-tight">
-              Agent Portal<br />Dashboard
+              Agent Portal
             </h1>
             <p style={{ color: "#a8674a" }} className="text-sm lg:text-base leading-relaxed">
               Log in to access your properties, lead lists, customer requirements, and match profiles across your assigned areas.
@@ -113,12 +113,12 @@ const AgentLogin = () => {
               {/* Username Input */}
               <div className="flex flex-col gap-1 text-left">
                 <label style={{ color: "#7c2d12" }} className="text-[11px] font-bold uppercase tracking-wide">
-                  loginid or Email 
+                  Login ID or Email 
                 </label>
                 <input
                   type="text"
                   name="username"
-                  placeholder="Enter login id "
+                  placeholder="Enter login ID or email"
                   value={formData.username}
                   onChange={handleChange}
                   style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
