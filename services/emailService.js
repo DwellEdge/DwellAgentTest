@@ -10,10 +10,6 @@ const EMAIL_PORT = Number(process.env.EMAIL_PORT || 587);
 const EMAIL_SECURE = process.env.EMAIL_SECURE === "true";
 const EMAIL_LIST_UNSUBSCRIBE = process.env.EMAIL_LIST_UNSUBSCRIBE;
 
-if (!EMAIL_USER || !EMAIL_PASS) {
-    throw new Error("EMAIL_USER and EMAIL_PASS must be defined in the environment.");
-}
-
 const transporter = nodemailer.createTransport({
     host: EMAIL_HOST,
     port: EMAIL_PORT,
@@ -27,13 +23,14 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-transporter.verify((error, success) => {
-    if (error) {
-        console.error("Email transporter verification failed:", error.message);
-    } else {
-        console.log("Email transporter is ready to send messages.");
+const sendMail = async (mailOptions) => {
+    if (!EMAIL_USER || !EMAIL_PASS) {
+        console.warn("Email credentials are not configured. Skipping email send.");
+        return;
     }
-});
+
+    await transporter.sendMail(mailOptions);
+};
 
 const sendWelcomeEmail = async (agent) => {
     const siteUrl = process.env.APP_URL || "http://localhost:5173";
@@ -47,7 +44,7 @@ const sendWelcomeEmail = async (agent) => {
         subject: "Welcome to DwellEdge",
         text: `Welcome to DwellEdge!\n\n` +
               `Visit: ${siteUrl}\n` +
-              `Login ID: ${agent.email}\n` +
+              `Login ID: ${agent.loginId}\n` +
               `Registered Mobile Number: ${agent.mobileNumber}\n\n` +
               `Thank you for registering with DwellEdge.`,
         html: `
@@ -64,7 +61,7 @@ const sendWelcomeEmail = async (agent) => {
                 <h3>Important Details</h3>
                 <p><strong>DwellEdge Link:</strong></p>
                 <p><a href="${siteUrl}">${siteUrl}</a></p>
-                <p><strong>Login ID:</strong> ${agent.email}</p>
+                <p><strong>Login ID:</strong> ${agent.loginId}</p>
                 <p><strong>Registered Mobile Number:</strong> ${agent.mobileNumber}</p>
                 <p>Thank you for registering with DwellEdge.</p>
               </body>
@@ -82,7 +79,29 @@ const sendWelcomeEmail = async (agent) => {
         },
     };
 
-    await transporter.sendMail(mailOptions);
+    await sendMail(mailOptions);
+};
+
+const sendPasswordResetOtpEmail = async ({ email, otp }) => {
+    const mailOptions = {
+        from: `"${EMAIL_FROM_NAME}" <${EMAIL_FROM}>`,
+        sender: `${EMAIL_FROM_NAME} <${EMAIL_FROM}>`,
+        replyTo: EMAIL_REPLY_TO,
+        to: email,
+        subject: "Your DwellEdge password reset OTP",
+        text: `Your password reset OTP is ${otp}. It will expire in 5 minutes.`,
+        html: `
+            <div style="font-family: Arial, sans-serif;">
+                <h2>Password Reset Request</h2>
+                <p>Your DwellEdge password reset OTP is <strong>${otp}</strong>.</p>
+                <p>This code will expire in 5 minutes.</p>
+            </div>
+        `,
+    };
+
+    await sendMail(mailOptions);
 };
 
 module.exports = sendWelcomeEmail;
+module.exports.sendWelcomeEmail = sendWelcomeEmail;
+module.exports.sendPasswordResetOtpEmail = sendPasswordResetOtpEmail;
