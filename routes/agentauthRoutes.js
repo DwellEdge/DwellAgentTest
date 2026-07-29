@@ -2,7 +2,13 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
-const { registerAgent, loginAgent } = require("../controllers/agentAuthController");
+const {
+  registerAgent,
+  loginAgent,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
+} = require("../controllers/agentauthController");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -55,5 +61,8 @@ const handleUpload = (req, res, next) => {
 
 router.post("/register", handleUpload, registerAgent);
 router.post("/login", loginAgent);
+router.post("/forgot-password", forgotPassword);
+router.post("/verify-otp", verifyOtp);
+router.post("/reset-password", resetPassword);
 
 module.exports = router;

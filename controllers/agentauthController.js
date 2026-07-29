@@ -1,7 +1,9 @@
 const Agent = require("../models/Agent");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const client = require("../services/twilioService");
 const sendWelcomeEmail = require("../services/emailService");
+const { sendPasswordResetOtpEmail } = require("../services/emailService");
 
 // Strips common SQL injection patterns from a string
 const sanitize = (str) => {
@@ -11,6 +13,26 @@ const sanitize = (str) => {
 
 const isValidEmail = (email) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+const getNextAgentId = async () => {
+  const result = await Agent.aggregate([
+    { $match: { agentId: { $regex: /^A\d+$/ } } },
+    {
+      $project: {
+        number: {
+          $toInt: {
+            $substrCP: ["$agentId", 1, { $subtract: [{ $strLenCP: "$agentId" }, 1] }],
+          },
+        },
+      },
+    },
+    { $sort: { number: -1 } },
+    { $limit: 1 },
+  ]);
+
+  const nextNumber = result.length ? result[0].number + 1 : 1;
+  return `A${String(nextNumber).padStart(2, "0")}`;
 };
 
 const registerAgent = async (req, res) => {
@@ -99,9 +121,8 @@ const registerAgent = async (req, res) => {
     }
 
     // --- Auto-generate agentId and loginId ---
-    const count = await Agent.countDocuments();
-    const agentId = `A${String(count + 1).padStart(2, "0")}`;
-    const loginId = `${cleanFirstName}${agentId}`;
+    let agentId = await getNextAgentId();
+    let loginId = `${cleanFirstName}${agentId}`;
 
     // --- Hash password ---
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -110,8 +131,7 @@ const registerAgent = async (req, res) => {
     const photo = req.files?.photo?.[0]?.filename || "";
     const idDocument = req.files?.idDocument?.[0]?.filename || "";
 
-    // --- Create agent ---
-    const agent = await Agent.create({
+    const createAgentPayload = () => ({
       agentId,
       firstName: cleanFirstName,
       lastName: cleanLastName,
@@ -128,6 +148,27 @@ const registerAgent = async (req, res) => {
       propertyTypes: [],
     });
 
+    const maxRetries = 3;
+    let agent;
+    for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+      try {
+        agent = await Agent.create(createAgentPayload());
+        break;
+      } catch (createError) {
+        if (
+          createError.code === 11000 &&
+          createError.keyPattern &&
+          createError.keyPattern.agentId &&
+          attempt < maxRetries
+        ) {
+          agentId = await getNextAgentId();
+          loginId = `${cleanFirstName}${agentId}`;
+          continue;
+        }
+        throw createError;
+      }
+    }
+
     try {
       await sendWelcomeEmail({
         email: agent.email,
@@ -142,10 +183,10 @@ const registerAgent = async (req, res) => {
 
     // --- Send SMS ---
     const smsMessage =
-      `Welcome to DwellEdge let grow the business through mutual co-operation! ` +
-      `below are the important details\n` +
-      `Dwelledge link to publish the property: http://localhost:5173/agent-login\n` +
-      `login id: ${loginId}\n` +
+      `Welcome to DwellEdge, let’s grow the business through mutual co-operation!\n` +
+      `Important details:\n` +
+      `DwellEdge login page: http://localhost:5173/agent-login\n` +
+      `Login ID: ${agent.loginId}\n` +
       `Registered email: ${cleanEmail}`;
 
     try {
@@ -167,13 +208,16 @@ const registerAgent = async (req, res) => {
 
 const loginAgent = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Email and password are required" });
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: "Email/Username and password are required" });
     }
 
-    const agent = await Agent.findOne({ email: email.toLowerCase().trim() });
+    const agent = await Agent.findOne({
+      $or: [{ email: username.toLowerCase().trim() }, { loginId: username.trim() }],
+    });
+
     if (!agent) {
       return res.status(401).json({ success: false, message: "Invalid email or password" });
     }
@@ -198,4 +242,98 @@ const loginAgent = async (req, res) => {
   }
 };
 
-module.exports = { registerAgent, loginAgent };
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    const agent = await Agent.findOne({ email: email.toLowerCase().trim() });
+    if (!agent) {
+      return res.status(404).json({ success: false, message: "No account found with this email" });
+    }
+
+    const otp = String(crypto.randomInt(10000, 99999));
+    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+
+    agent.otp = otp;
+    agent.otpExpiry = otpExpiry;
+    await agent.save();
+
+    try {
+      await sendPasswordResetOtpEmail({ email: agent.email, otp });
+    } catch (mailError) {
+      console.error("Password reset email error:", mailError.message);
+    }
+
+    res.json({ success: true, message: "OTP sent to your email" });
+  } catch (error) {
+    console.error("Forgot password error:", error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: "Email and OTP are required" });
+    }
+
+    const agent = await Agent.findOne({ email: email.toLowerCase().trim() });
+    if (!agent) {
+      return res.status(404).json({ success: false, message: "No account found with this email" });
+    }
+
+    if (!agent.otp || agent.otp !== otp || !agent.otpExpiry || new Date(agent.otpExpiry) < new Date()) {
+      return res.status(400).json({ success: false, message: "OTP is invalid or expired" });
+    }
+
+    res.json({ success: true, message: "OTP verified successfully" });
+  } catch (error) {
+    console.error("Verify OTP error:", error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: "Email, OTP, and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    }
+
+    const agent = await Agent.findOne({ email: email.toLowerCase().trim() });
+    if (!agent) {
+      return res.status(404).json({ success: false, message: "No account found with this email" });
+    }
+
+    if (!agent.otp || agent.otp !== otp || !agent.otpExpiry || new Date(agent.otpExpiry) < new Date()) {
+      return res.status(400).json({ success: false, message: "OTP is invalid or expired" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    agent.password = hashedPassword;
+    agent.otp = undefined;
+    agent.otpExpiry = undefined;
+    await agent.save();
+
+    res.json({ success: true, message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Reset password error:", error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = {
+  registerAgent,
+  loginAgent,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
+};

@@ -6,6 +6,7 @@ import PhoneForm from './pages/PhoneForm'
 import Agents from './pages/Agents'
 import AgentRegister from './pages/AgentRegister'
 import AgentLogin from "./pages/AgentLogin";
+import AgentDashboard from "./pages/AgentDashboard";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       <Route path="/agent" element={<Agents />} />
       <Route path="/agent-register" element={<AgentRegister />} />
       <Route path="/agent-login" element={<AgentLogin />} />
+      <Route path="/agent-dashboard" element={<AgentDashboard />} />
     </Routes>
   )
 }
