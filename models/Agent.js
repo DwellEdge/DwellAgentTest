@@ -15,6 +15,11 @@ const agentSchema = new mongoose.Schema({
   idDocument: String,
   password: String,
   loginId: String,
+  referredBy: {
+    agentId: String,
+    loginId: String,
+    name: String,
+  },
   propertyTypes: [
     {
       propertyTypeId: String,
