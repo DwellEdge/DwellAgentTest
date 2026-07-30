@@ -98,9 +98,13 @@ const registerAgent = async (req, res) => {
       };
     }
 
-    // --- Auto-generate agentId and loginId ---
-    const count = await Agent.countDocuments();
-    const agentId = `A${String(count + 1).padStart(2, "0")}`;
+    // --- Auto-generate agentId and loginId (next number after highest existing ID) ---
+    const existingAgents = await Agent.find({ agentId: /^A\d+$/i }).select("agentId").lean();
+    const maxNum = existingAgents.reduce((max, a) => {
+      const num = parseInt(a.agentId.slice(1), 10);
+      return Number.isNaN(num) ? max : Math.max(max, num);
+    }, 0);
+    const agentId = `A${String(maxNum + 1).padStart(2, "0")}`;
     const loginId = `${cleanFirstName}${agentId}`;
 
     // --- Hash password ---
@@ -142,59 +146,100 @@ const registerAgent = async (req, res) => {
 
     // --- Send SMS ---
     const smsMessage =
-      `Welcome to DwellEdge let grow the business through mutual co-operation! ` +
+      `Welcome to DwellAgent let grow the business through mutual co-operation! ` +
       `below are the important details\n` +
-      `Dwelledge link to publish the property: http://localhost:5173/agent-login\n` +
+      `DwellAgent link to publish the property: http://localhost:5173/agent-login\n` +
       `login id: ${loginId}\n` +
       `Registered email: ${cleanEmail}`;
 
     try {
+      if (!process.env.TWILIO_PHONE) {
+        throw new Error("TWILIO_PHONE is not configured");
+      }
+
       await client.messages.create({
         body: smsMessage,
         from: process.env.TWILIO_PHONE,
         to: `+91${cleanMobile}`,
       });
+      console.log(`Welcome SMS sent to +91${cleanMobile}`);
     } catch (smsErr) {
-      console.error("SMS send error:", smsErr.message);
+      console.error("SMS send error:", smsErr.code || "unknown", smsErr.message);
     }
 
     res.status(201).json({ success: true, data: agent });
   } catch (error) {
     console.error("Register error:", error.message);
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Registration failed due to an ID conflict. Please try again.",
+      });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 const loginAgent = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Email and password are required" });
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Username and Password are required",
+      });
     }
 
-    const agent = await Agent.findOne({ email: email.toLowerCase().trim() });
+    const cleanUsername = username.trim();
+
+    // Find agent by Email OR Login ID OR First Name
+    const agent = await Agent.findOne({
+      $or: [
+        { email: cleanUsername.toLowerCase() },
+        { loginId: { $regex: `^${cleanUsername}$`, $options: "i" } },
+        { firstName: { $regex: `^${cleanUsername}$`, $options: "i" } },
+      ],
+    });
+
     if (!agent) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Username or Password",
+      });
     }
 
     if (!agent.password) {
       return res.status(401).json({
         success: false,
-        message: "This account was not registered via the portal",
+        message: "This account was not registered through the portal",
       });
     }
 
     const isMatch = await bcrypt.compare(password, agent.password);
+
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Username or Password",
+      });
     }
 
+    // Remove password before sending response
     const { password: _, ...agentData } = agent.toObject();
-    res.json({ success: true, agent: agentData });
+
+    res.status(200).json({
+      success: true,
+      message: "Login Successful",
+      agent: agentData,
+    });
   } catch (error) {
-    console.error("Login error:", error.message);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Login Error:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 

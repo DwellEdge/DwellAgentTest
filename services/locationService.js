@@ -1,11 +1,48 @@
 const axios = require("axios");
 
+const PropertyDetails = require("../models/PropertyDetails");
 const Agent = require("../models/Agent");
 const Customer = require("../models/Customer");
 const PropertyType = require("../models/PropertyType");
 
+// P01=Rent, P02=Lease, P03=Sale (UI label may be "Purchase")
+const purposeMap = {
+  P01: "Rent",
+  P02: "Lease",
+  P03: "Sale",
+};
+
+const resolvePurpose = async (propertyTypeOrId) => {
+  if (!propertyTypeOrId) return null;
+
+  if (purposeMap[propertyTypeOrId]) {
+    return purposeMap[propertyTypeOrId];
+  }
+
+  const property = await PropertyType.findOne({
+    $or: [
+      { propertyTypeId: propertyTypeOrId },
+      { propertyType: { $regex: `^${propertyTypeOrId}$`, $options: "i" } },
+    ],
+  }).lean();
+
+  if (property?.propertyTypeId) {
+    return purposeMap[property.propertyTypeId] || null;
+  }
+
+  if (propertyTypeOrId.toLowerCase() === "purchase") {
+    return "Sale";
+  }
+
+  if (["Rent", "Lease", "Sale"].includes(propertyTypeOrId)) {
+    return propertyTypeOrId;
+  }
+
+  return null;
+};
+
 const searchLocations = async (query) => {
-  const dbAgentCities = await Agent.find({
+  const dbAgentCities = await PropertyDetails.find({
     city: {
       $regex: query,
       $options: "i",
@@ -68,11 +105,12 @@ const searchLocations = async (query) => {
 };
 
 const getAreasByCity = async (city) => {
-  const areas = await Agent.find({
+  const areas = await PropertyDetails.find({
     city: {
       $regex: `^${city}$`,
       $options: "i",
     },
+    expiryDate: { $gt: new Date() },
   }).distinct("area");
 
   const customerAreas = await Customer.find({
@@ -85,42 +123,13 @@ const getAreasByCity = async (city) => {
   return [...new Set([...areas, ...customerAreas])].sort();
 };
 
-const getCustomersByArea = async (
-  city,
-  area,
-  propertyType
-) => {
+const getCustomersByArea = async (city, area, propertyTypeOrId) => {
+  const TransactionHistory = require("../models/TransactionHistory");
 
-  const TransactionHistory =
-    require("../models/TransactionHistory");
+  const areaName = area.split(",")[0].trim();
+  const purpose = await resolvePurpose(propertyTypeOrId);
 
-  const areaName =
-    area.split(",")[0].trim();
-
-  let propertyTypeId = null;
-
-  if (propertyType) {
-
-    const property =
-      await PropertyType.findOne({
-        propertyType: propertyType
-      });
-
-      console.log("Property Type From UI:", propertyType);
-console.log("Property Record:", property);
-
-console.log(
-  "Property Record:",
-  property
-);
-
-    if (property) {
-      propertyTypeId =
-        property.propertyTypeId;
-    }
-  }
-
-  const agentFilter = {
+  const propertyFilter = {
     city: {
       $regex: `^${city}$`,
       $options: "i",
@@ -129,142 +138,70 @@ console.log(
       $regex: `^${areaName}$`,
       $options: "i",
     },
+    expiryDate: { $gt: new Date() },
   };
 
-   if (propertyTypeId) {
-  agentFilter["propertyTypes.propertyTypeId"] =
-    propertyTypeId;
-}
+  if (purpose) {
+    propertyFilter.propertyAvailableFor = purpose;
+  }
 
-console.log(
-  "Agent Filter:",
-  JSON.stringify(agentFilter, null, 2)
-);
+  const propertyResults = await PropertyDetails.find(propertyFilter).lean();
 
-  // -------------------------
-  // GET AGENTS
-  // -------------------------
-console.log(
-  "Agent Filter:",
-  agentFilter
-);
+  const propertyCountByAgent = {};
+  propertyResults.forEach((property) => {
+    propertyCountByAgent[property.agentId] =
+      (propertyCountByAgent[property.agentId] || 0) + 1;
+  });
 
-  const agentResults =
-    await Agent.find(
-      agentFilter
-    ).lean();
+  const agentIds = Object.keys(propertyCountByAgent);
+  const agents = agentIds.length
+    ? await Agent.find({ agentId: { $in: agentIds } }).lean()
+    : [];
 
-    console.log(
-  "Agent Results:",
-  agentResults.map(a => ({
-    agentid: a.agentid,
-    agentId: a.agentId,
-    propertyTypeId: a.propertyTypeId
-  }))
-);
-
-    console.log(
-  "Current Agents:",
-  agentResults.map(a => ({
-    agentId: a.agentId,
-    firstName: a.firstName
-  }))
-);
-  // -------------------------
-  // GET PREVIOUSLY SHARED AGENTS
-  // -------------------------
-
-  const previousTransactions =
-  await TransactionHistory.find({
-    city: city,
+  const previousTransactions = await TransactionHistory.find({
+    city,
     area: areaName,
-    propertyType: propertyType
+    ...(propertyTypeOrId ? { propertyType: propertyTypeOrId } : {}),
   }).lean();
 
-const usedAgentIds =
-  new Set(
-    previousTransactions.flatMap(
-      transaction =>
-        transaction.agentIds || []
-    )
+  const usedAgentIds = new Set(
+    previousTransactions.flatMap((transaction) => transaction.agentIds || []),
   );
 
-  console.log(
-    "Used Agent IDs:",
-    [...usedAgentIds]
-  );
+  const sortedAgents = agents
+    .map((agent) => ({
+      ...agent,
+      filteredCount: propertyCountByAgent[agent.agentId] || 0,
+      filteredPropertyType: purpose,
+      properties: propertyResults.filter((p) => p.agentId === agent.agentId),
+    }))
+    .sort((a, b) => {
+      const aUsed = usedAgentIds.has(a.agentId);
+      const bUsed = usedAgentIds.has(b.agentId);
+      if (aUsed === bUsed) return 0;
+      return aUsed ? 1 : -1;
+    });
 
-  // -------------------------
-  // SORT AGENTS
-  // USED AGENTS GO TO LAST
-  // -------------------------
-
-  const sortedAgents =
-    [...agentResults].sort(
-      (a, b) => {
-
-        const aId =
-          (
-            a.agentId ||
-            a.agentid
-          )?.toString().trim();
-
-        const bId =
-          (
-            b.agentId ||
-            b.agentid
-          )?.toString().trim();
-
-        const aUsed =
-          usedAgentIds.has(aId);
-
-        const bUsed =
-          usedAgentIds.has(bId);
-
-        if (
-          aUsed === bUsed
-        ) {
-          return 0;
-        }
-
-        return aUsed
-          ? 1
-          : -1;
-      }
-    );
-
-  // -------------------------
-  // CUSTOMERS
-  // -------------------------
-
-  const customerResults =
-    await Customer.find({
-      city: {
-        $regex: `^${city}$`,
-        $options: "i",
-      },
-      area: {
-        $regex: `^${areaName}$`,
-        $options: "i",
-      },
-    }).lean();
+  const customerResults = await Customer.find({
+    city: {
+      $regex: `^${city}$`,
+      $options: "i",
+    },
+    area: {
+      $regex: `^${areaName}$`,
+      $options: "i",
+    },
+  }).lean();
 
   return [
-
-    ...sortedAgents.map(
-      (a) => ({
-        ...a,
-        type: "Agent",
-      })
-    ),
-
-    ...customerResults.map(
-      (c) => ({
-        ...c,
-        type: "Customer",
-      })
-    ),
-
+    ...sortedAgents.map((a) => ({
+      ...a,
+      type: "Agent",
+    })),
+    ...customerResults.map((c) => ({
+      ...c,
+      type: "Customer",
+    })),
   ];
 };
 
