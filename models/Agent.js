@@ -15,6 +15,8 @@ const agentSchema = new mongoose.Schema({
   idDocument: String,
   password: String,
   loginId: String,
+  otp: String,
+  otpExpiry: Date,
   referredBy: {
     agentId: String,
     loginId: String,
