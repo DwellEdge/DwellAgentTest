@@ -22,13 +22,6 @@ const agentSchema = new mongoose.Schema({
     loginId: String,
     name: String,
   },
-  propertyTypes: [
-    {
-      propertyTypeId: String,
-      propertyType: String,
-      count: Number,
-    },
-  ],
   "Number of Property": String,
   createdDateAndTime: {
     type: Date,
