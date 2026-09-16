@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Footer from '../components/Footer'
 
 export default function AgentDashboard() {
   const navigate = useNavigate();
@@ -403,9 +404,7 @@ export default function AgentDashboard() {
         </div>
       </main>
 
-      <p style={{ color: "#d4a090" }} className="text-xs sm:text-sm text-center pb-6">
-        © 2026 DwellAgent
-      </p>
+      <Footer />
     </div>
   );
 }
