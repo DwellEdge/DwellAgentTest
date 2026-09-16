@@ -5,7 +5,6 @@ const client = require("../services/twilioService");
 const sendWelcomeEmail = require("../services/emailService");
 const { sendPasswordResetOtpEmail } = require("../services/emailService");
 
-// Strips common SQL injection patterns from a string
 const sanitize = (str) => {
   if (typeof str !== "string") return str;
   return str.replace(/(['";\\]|--|\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC|UNION|OR|AND)\b)/gi, "");
@@ -30,7 +29,6 @@ const getNextAgentId = async () => {
     { $sort: { number: -1 } },
     { $limit: 1 },
   ]);
-
   const nextNumber = result.length ? result[0].number + 1 : 1;
   return `A${String(nextNumber).padStart(2, "0")}`;
 };
@@ -38,17 +36,9 @@ const getNextAgentId = async () => {
 const registerAgent = async (req, res) => {
   try {
     const {
-      firstName,
-      lastName,
-      email,
-      mobileNumber,
-      officeAddress,
-      homeAddress,
-      password,
-      referral,
+      firstName, lastName, email, mobileNumber,
+      officeAddress, homeAddress, password, referral,
     } = req.body;
-
-    // --- Field-level backend validation ---
 
     const cleanFirstName = sanitize(firstName?.trim() || "");
     const cleanLastName = sanitize(lastName?.trim() || "");
@@ -58,45 +48,34 @@ const registerAgent = async (req, res) => {
     const cleanHome = sanitize(homeAddress?.trim() || "");
     const cleanReferral = referral?.trim() || "";
 
-    if (!cleanFirstName || !cleanLastName) {
+    if (!cleanFirstName || !cleanLastName)
       return res.status(400).json({ success: false, message: "Agent name is required" });
-    }
 
-    if (!isValidEmail(cleanEmail)) {
+    if (!isValidEmail(cleanEmail))
       return res.status(400).json({ success: false, message: "Invalid email format" });
-    }
 
-    if (!/^\d{10}$/.test(cleanMobile)) {
+    if (!/^\d{10}$/.test(cleanMobile))
       return res.status(400).json({ success: false, message: "Phone number must be exactly 10 digits" });
-    }
 
-    if (!cleanOffice) {
+    if (!cleanOffice)
       return res.status(400).json({ success: false, message: "Office address is required" });
-    }
 
-    if (!cleanHome) {
+    if (!cleanHome)
       return res.status(400).json({ success: false, message: "Home address is required" });
-    }
 
-    if (!req.files?.photo?.[0]) {
+    if (!req.files?.photo?.[0])
       return res.status(400).json({ success: false, message: "Agent photo is required" });
-    }
 
-    if (!req.files?.idDocument?.[0]) {
+    if (!req.files?.idDocument?.[0])
       return res.status(400).json({ success: false, message: "ID document is required" });
-    }
 
-    if (!password || password.length < 6) {
+    if (!password || password.length < 6)
       return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
-    }
 
-    // --- Email uniqueness check ---
     const existing = await Agent.findOne({ email: cleanEmail });
-    if (existing) {
+    if (existing)
       return res.status(400).json({ success: false, message: "Email already registered" });
-    }
 
-    // --- Referral validation (optional field) ---
     let referredBy = null;
     if (cleanReferral) {
       const referringAgent = await Agent.findOne({
@@ -105,14 +84,12 @@ const registerAgent = async (req, res) => {
           { firstName: { $regex: `^${cleanReferral}$`, $options: "i" } },
         ],
       });
-
       if (!referringAgent) {
         return res.status(400).json({
           success: false,
           message: "Referral not found. Please enter a valid referral ID or agent name.",
         });
       }
-
       referredBy = {
         agentId: referringAgent.agentId,
         loginId: referringAgent.loginId,
@@ -120,18 +97,16 @@ const registerAgent = async (req, res) => {
       };
     }
 
-    // --- Auto-generate agentId and loginId ---
+    // Use let so retry loop can reassign
     let agentId = await getNextAgentId();
     let loginId = `${cleanFirstName}${agentId}`;
 
-    // --- Hash password ---
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // --- File paths from multer ---
     const photo = req.files?.photo?.[0]?.filename || "";
     const idDocument = req.files?.idDocument?.[0]?.filename || "";
 
-    const createAgentPayload = () => ({
+    const buildPayload = () => ({
       agentId,
       firstName: cleanFirstName,
       lastName: cleanLastName,
@@ -145,20 +120,18 @@ const registerAgent = async (req, res) => {
       password: hashedPassword,
       loginId,
       referredBy,
-      propertyTypes: [],
     });
 
     const maxRetries = 3;
     let agent;
-    for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        agent = await Agent.create(createAgentPayload());
+        agent = await Agent.create(buildPayload());
         break;
       } catch (createError) {
         if (
           createError.code === 11000 &&
-          createError.keyPattern &&
-          createError.keyPattern.agentId &&
+          createError.keyPattern?.agentId &&
           attempt < maxRetries
         ) {
           agentId = await getNextAgentId();
@@ -169,39 +142,43 @@ const registerAgent = async (req, res) => {
       }
     }
 
+    // Send welcome email
     try {
-      await sendWelcomeEmail({
-        email: agent.email,
-        mobileNumber: agent.mobileNumber,
-        loginId: agent.loginId,
-      });
-
+      await sendWelcomeEmail(agent);
       console.log("Welcome email sent.");
     } catch (emailError) {
       console.error("Email Error:", emailError.message);
     }
 
-    // --- Send SMS ---
+    // Send welcome SMS
     const smsMessage =
-      `Welcome to DwellEdge, let’s grow the business through mutual co-operation!\n` +
-      `Important details:\n` +
-      `DwellEdge login page: http://localhost:5173/agent-login\n` +
-      `Login ID: ${agent.loginId}\n` +
+      `Welcome to DwellEdge let grow the business through mutual co-operation! ` +
+      `below are the important details\n` +
+      `DwellEdge link to publish the property: http://localhost:5173/agent-login\n` +
+      `login id: ${loginId}\n` +
       `Registered email: ${cleanEmail}`;
 
     try {
+      if (!process.env.TWILIO_PHONE) throw new Error("TWILIO_PHONE is not configured");
       await client.messages.create({
         body: smsMessage,
         from: process.env.TWILIO_PHONE,
         to: `+91${cleanMobile}`,
       });
+      console.log(`Welcome SMS sent to +91${cleanMobile}`);
     } catch (smsErr) {
-      console.error("SMS send error:", smsErr.message);
+      console.error("SMS send error:", smsErr.code || "unknown", smsErr.message);
     }
 
     res.status(201).json({ success: true, data: agent });
   } catch (error) {
     console.error("Register error:", error.message);
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Registration failed due to an ID conflict. Please try again.",
+      });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -211,33 +188,38 @@ const loginAgent = async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ success: false, message: "Email/Username and password are required" });
+      return res.status(400).json({ success: false, message: "Username and Password are required" });
     }
 
+    const cleanUsername = username.trim();
+
     const agent = await Agent.findOne({
-      $or: [{ email: username.toLowerCase().trim() }, { loginId: username.trim() }],
+      $or: [
+        { email: cleanUsername.toLowerCase() },
+        { loginId: { $regex: `^${cleanUsername}$`, $options: "i" } },
+      ],
     });
 
     if (!agent) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
+      return res.status(401).json({ success: false, message: "Invalid Username or Password" });
     }
 
     if (!agent.password) {
       return res.status(401).json({
         success: false,
-        message: "This account was not registered via the portal",
+        message: "This account was not registered through the portal",
       });
     }
 
     const isMatch = await bcrypt.compare(password, agent.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
+      return res.status(401).json({ success: false, message: "Invalid Username or Password" });
     }
 
     const { password: _, ...agentData } = agent.toObject();
-    res.json({ success: true, agent: agentData });
+    res.status(200).json({ success: true, message: "Login Successful", agent: agentData });
   } catch (error) {
-    console.error("Login error:", error.message);
+    console.error("Login Error:", error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -263,6 +245,7 @@ const forgotPassword = async (req, res) => {
 
     try {
       await sendPasswordResetOtpEmail({ email: agent.email, otp });
+      console.log(`OTP email sent to ${agent.email}`);
     } catch (mailError) {
       console.error("Password reset email error:", mailError.message);
     }
@@ -286,7 +269,12 @@ const verifyOtp = async (req, res) => {
       return res.status(404).json({ success: false, message: "No account found with this email" });
     }
 
-    if (!agent.otp || agent.otp !== otp || !agent.otpExpiry || new Date(agent.otpExpiry) < new Date()) {
+    if (
+      !agent.otp ||
+      agent.otp !== otp ||
+      !agent.otpExpiry ||
+      new Date(agent.otpExpiry) < new Date()
+    ) {
       return res.status(400).json({ success: false, message: "OTP is invalid or expired" });
     }
 
@@ -301,11 +289,17 @@ const resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
     if (!email || !otp || !newPassword) {
-      return res.status(400).json({ success: false, message: "Email, OTP, and new password are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Email, OTP, and new password are required",
+      });
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
     }
 
     const agent = await Agent.findOne({ email: email.toLowerCase().trim() });
@@ -313,7 +307,12 @@ const resetPassword = async (req, res) => {
       return res.status(404).json({ success: false, message: "No account found with this email" });
     }
 
-    if (!agent.otp || agent.otp !== otp || !agent.otpExpiry || new Date(agent.otpExpiry) < new Date()) {
+    if (
+      !agent.otp ||
+      agent.otp !== otp ||
+      !agent.otpExpiry ||
+      new Date(agent.otpExpiry) < new Date()
+    ) {
       return res.status(400).json({ success: false, message: "OTP is invalid or expired" });
     }
 
@@ -330,10 +329,4 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = {
-  registerAgent,
-  loginAgent,
-  forgotPassword,
-  verifyOtp,
-  resetPassword,
-};
+module.exports = { registerAgent, loginAgent, forgotPassword, verifyOtp, resetPassword };

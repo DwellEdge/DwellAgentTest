@@ -5,10 +5,9 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 
-const app = express();
-
 const connectDB = require("./config/db");
 
+<<<<<<< HEAD
 app.use(cors());
 app.use(express.json());
 
@@ -21,6 +20,8 @@ app.use((req, res, next) => {
 // Serve uploaded files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+=======
+>>>>>>> 4cc777a5e1edbc22743d6431326b424d0b1c4726
 const agentRoutes = require("./routes/agentRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const messageRoutes = require("./routes/messageRoutes");
@@ -29,9 +30,15 @@ const propertyTypeCreateRoutes = require("./routes/propertyTypeRoutes");
 const locationRoutes = require("./routes/locationRoutes");
 const transactionHistoryRoutes = require("./routes/transactionHistoryRoutes");
 const agentAuthRoutes = require("./routes/agentAuthRoutes");
+<<<<<<< HEAD
 const uploadRoutes = require("./routes/uploadRoutes");
 const propertyRoutes = require("./routes/propertyRoutes");
 const { createProperty } = require('./controllers/propertyController');
+=======
+const propertyRoutes = require("./routes/propertyRoutes");
+
+const app = express();
+>>>>>>> 4cc777a5e1edbc22743d6431326b424d0b1c4726
 
 connectDB();
 
@@ -45,6 +52,10 @@ const videosDir = path.join(uploadsDir, 'videos');
 if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
 if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
 
+app.use(cors());
+app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 app.get("/", (req, res) => {
   res.send("Server Running");
 });
@@ -57,6 +68,7 @@ app.use("/api/agents", agentRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api", messageRoutes);
 app.use("/api/agent-auth", agentAuthRoutes);
+<<<<<<< HEAD
 app.use('/api/upload', uploadRoutes);
 app.use('/api/properties', propertyRoutes);
 console.log('Mounted route: /api/properties -> routes/propertyRoutes');
@@ -88,6 +100,9 @@ app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
   res.status(500).json({ success: false, message: err.message || 'Server error' });
 });
+=======
+app.use("/api/properties", propertyRoutes);
+>>>>>>> 4cc777a5e1edbc22743d6431326b424d0b1c4726
 
 const PORT = process.env.PORT || 5002;
 

@@ -23,11 +23,10 @@ const AgentLogin = () => {
   const navigate = useNavigate();
   const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5002";
 
-  const [formData, setFormData] = useState({
-    username: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState({ username: "", password: "" });
   const [errorStatus, setErrorStatus] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [showForgotPopup, setShowForgotPopup] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -36,7 +35,6 @@ const AgentLogin = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetStatus, setResetStatus] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForgotFlow = () => {
     setForgotEmail("");
@@ -50,10 +48,8 @@ const AgentLogin = () => {
 
   const handleChange = (e) => {
     const value = sanitizeInput(e.target.value);
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: value }));
+    setErrorStatus("");
   };
 
   const handleLogin = async (e) => {
@@ -80,6 +76,7 @@ const AgentLogin = () => {
       const data = await response.json();
 
       if (data.success) {
+<<<<<<< HEAD
         setErrorStatus("");
         const user = data?.agent || data?.user || null;
         if (user) {
@@ -89,6 +86,9 @@ const AgentLogin = () => {
             console.warn("Could not save user to localStorage:", storageError);
           }
         }
+=======
+        sessionStorage.setItem("agentUser", JSON.stringify(data.agent));
+>>>>>>> 4cc777a5e1edbc22743d6431326b424d0b1c4726
         navigate("/agent-dashboard");
       } else {
         setErrorStatus("❌ " + (data.message || "Login failed"));
@@ -98,10 +98,6 @@ const AgentLogin = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleRegister = () => {
-    navigate("/agent-register");
   };
 
   const handleGenerateOTP = async () => {
@@ -177,12 +173,10 @@ const AgentLogin = () => {
       setResetStatus("❌ Please verify the OTP first.");
       return;
     }
-
     if (!newPassword || newPassword.length < 6) {
       setResetStatus("❌ Password must be at least 6 characters");
       return;
     }
-
     if (newPassword !== confirmPassword) {
       setResetStatus("❌ Passwords do not match");
       return;
@@ -208,7 +202,7 @@ const AgentLogin = () => {
         resetForgotFlow();
         setShowForgotPopup(false);
         setFormData((prev) => ({ ...prev, password: "" }));
-        setErrorStatus("✅ Password updated successfully. You can now login with your new password.");
+        setErrorStatus("✅ Password updated successfully. You can now login.");
       } else {
         setResetStatus("❌ " + (data.message || "Password update failed"));
       }
@@ -220,10 +214,13 @@ const AgentLogin = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col"
+    <div
+      className="min-h-screen flex flex-col"
       style={{ background: "linear-gradient(135deg, #fff7f3 0%, #ffe8dc 50%, #fff7f3 100%)" }}
     >
-      <nav style={{ background: "rgba(255,255,255,0.8)", borderBottom: "1px solid #fdd9c8", backdropFilter: "blur(10px)" }}
+      {/* Navbar */}
+      <nav
+        style={{ background: "rgba(255,255,255,0.8)", borderBottom: "1px solid #fdd9c8", backdropFilter: "blur(10px)" }}
         className="flex items-center justify-between px-4 sm:px-8 py-4 shadow-sm"
       >
         <div
@@ -233,18 +230,23 @@ const AgentLogin = () => {
         >
           DWELLAGENT
         </div>
-        <button onClick={() => navigate(-1)}
+        <button
+          onClick={() => navigate(-1)}
           style={{ background: "rgba(255,255,255,0.9)", border: "1px solid #fdd9c8", color: "#c2511f" }}
           className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full shadow-md text-xs sm:text-sm font-bold hover:shadow-lg transition"
         >
-          &larr; Back
+          ← Back
         </button>
       </nav>
 
+      {/* Main */}
       <div className="flex flex-1 items-center justify-center px-4 py-6 sm:py-12">
         <div className="w-full max-w-5xl flex flex-col md:flex-row gap-8 lg:gap-12 items-center">
+
+          {/* Left */}
           <div className="flex-1 hidden md:flex flex-col gap-5 text-left">
-            <div style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
+            <div
+              style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
               className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-lg"
             >
               💼
@@ -253,30 +255,35 @@ const AgentLogin = () => {
               Agent Portal
             </h1>
             <p style={{ color: "#a8674a" }} className="text-sm lg:text-base leading-relaxed">
-              Log in to access your properties, lead lists, customer requirements, and match profiles across your assigned areas.
+              Log in to access your properties, lead lists, customer
+              requirements, and match profiles across your assigned areas.
             </p>
-
             <div className="flex flex-col gap-3 mt-1">
               {[
                 { icon: "📈", text: "Track hot property leads instantly" },
                 { icon: "👥", text: "Match buyer requirements directly" },
                 { icon: "🛡️", text: "Verified agent network features" },
               ].map((item, i) => (
-                <div key={i}
+                <div
+                  key={i}
                   style={{ background: "#fff", border: "1px solid #fdd9c8" }}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl shadow-sm text-sm font-medium text-orange-900"
                 >
-                  <span className="shrink-0">{item.icon}</span> {item.text}
+                  <span>{item.icon}</span>
+                  {item.text}
                 </div>
               ))}
             </div>
           </div>
 
-          <div style={{ background: "#fff", border: "1px solid #fdd9c8" }}
+          {/* Login Card */}
+          <div
+            style={{ background: "#fff", border: "1px solid #fdd9c8" }}
             className="w-full md:flex-1 rounded-2xl sm:rounded-3xl p-6 sm:p-10 flex flex-col gap-5 shadow-lg"
           >
             <div>
-              <div style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
+              <div
+                style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl shadow mb-3"
               >
                 🔐
@@ -301,7 +308,7 @@ const AgentLogin = () => {
                   value={formData.username}
                   onChange={handleChange}
                   style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
-                  className="border-2 rounded-xl px-4 py-2.5 sm:py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50/50 w-full placeholder-orange-300"
+                  className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50/50 w-full placeholder-orange-300"
                 />
               </div>
 
@@ -316,39 +323,42 @@ const AgentLogin = () => {
                   value={formData.password}
                   onChange={handleChange}
                   style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
-                  className="border-2 rounded-xl px-4 py-2.5 sm:py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50/50 w-full placeholder-orange-300"
+                  className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50/50 w-full placeholder-orange-300"
                 />
               </div>
 
               {errorStatus && (
-                <p className="text-xs sm:text-sm font-medium text-left text-red-500 -mt-1">
+                <p style={{ color: errorStatus.startsWith("✅") ? "#16a34a" : "#ef4444" }}
+                  className="text-sm font-medium">
                   {errorStatus}
                 </p>
               )}
 
-              <div className="flex flex-col gap-2.5 mt-2">
+              <div className="flex flex-col gap-3 mt-2">
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
-                  className="w-full text-white py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition active:scale-98 disabled:opacity-70"
+                  className="w-full text-white py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition disabled:opacity-70"
                 >
-                  {isSubmitting ? "Please wait..." : "Login →"}
+                  {isSubmitting ? "Logging in..." : "Login →"}
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleRegister}
+                  onClick={() => navigate("/agent-register")}
                   style={{ borderColor: "#fdd9c8", color: "#c2511f" }}
-                  className="w-full border-2 py-3 rounded-xl text-sm font-bold hover:bg-orange-50 transition bg-white active:scale-98"
+                  className="w-full border-2 py-3 rounded-xl text-sm font-bold hover:bg-orange-50 transition bg-white"
                 >
                   Register New Account
                 </button>
-                <div className="text-center mt-2">
+
+                <div className="text-center mt-1">
                   <button
                     type="button"
-                    onClick={() => setShowForgotPopup(true)}
-                    className="text-sm font-semibold text-orange-600 hover:underline"
+                    onClick={() => { setShowForgotPopup(true); resetForgotFlow(); }}
+                    style={{ color: "#e8724a" }}
+                    className="text-sm font-semibold hover:underline"
                   >
                     Forgot Password?
                   </button>
@@ -359,113 +369,164 @@ const AgentLogin = () => {
         </div>
       </div>
 
+      <p style={{ color: "#d4a090" }} className="text-xs sm:text-sm text-center pb-6">
+        © 2026 DwellAgent
+      </p>
+
+      {/* Forgot Password Popup */}
       {showForgotPopup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-[90%] max-w-md p-6 relative">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(124, 45, 18, 0.3)", backdropFilter: "blur(4px)" }}
+        >
+          <div
+            style={{ background: "#fff", border: "1px solid #fdd9c8" }}
+            className="w-full max-w-md rounded-3xl p-8 shadow-2xl mx-4 relative"
+          >
             <button
-              onClick={() => {
-                setShowForgotPopup(false);
-                resetForgotFlow();
-              }}
-              className="absolute right-4 top-3 text-2xl text-gray-500 hover:text-red-500"
+              onClick={() => { setShowForgotPopup(false); resetForgotFlow(); }}
+              style={{ color: "#a8674a" }}
+              className="absolute right-5 top-4 text-2xl hover:text-red-500 transition"
             >
               ×
             </button>
 
-            <h2 className="text-2xl font-bold text-orange-700 mb-6">
+            <div
+              style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow mb-4"
+            >
+              🔑
+            </div>
+
+            <h2 style={{ color: "#7c2d12" }} className="text-xl font-extrabold mb-1">
               Forgot Password
             </h2>
+            <p style={{ color: "#a8674a" }} className="text-sm mb-6">
+              {!otpGenerated
+                ? "Enter your registered email to receive an OTP."
+                : !otpVerified
+                ? "Enter the OTP sent to your email."
+                : "Set your new password."}
+            </p>
+
+            <div style={{ background: "#fdd9c8" }} className="w-full h-px mb-6" />
 
             {!otpGenerated ? (
-              <>
-                <label className="text-sm font-semibold text-orange-900">
-                  Enter your Email
-                </label>
-                <input
-                  type="email"
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="Enter registered email"
-                  className="w-full border-2 border-orange-200 rounded-xl px-4 py-3 mt-2 mb-4 focus:outline-none"
-                />
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
+                    Registered Email
+                  </label>
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => { setForgotEmail(e.target.value); setResetStatus(""); }}
+                    placeholder="Enter your email"
+                    style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
+                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50"
+                  />
+                </div>
                 <button
                   onClick={handleGenerateOTP}
                   disabled={isSubmitting}
-                  className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 disabled:opacity-70"
+                  style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
+                  className="w-full text-white py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition disabled:opacity-70"
                 >
-                  {isSubmitting ? "Sending..." : "Generate OTP"}
+                  {isSubmitting ? "Sending..." : "Send OTP →"}
                 </button>
-              </>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {!otpVerified ? (
-                  <>
-                    <label className="text-sm font-semibold text-orange-900">
-                      Enter OTP (5 Digits)
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={5}
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                      placeholder="Enter OTP"
-                      className="w-full border-2 border-orange-200 rounded-xl px-4 py-3"
-                    />
-                    <button
-                      onClick={handleVerifyOTP}
-                      disabled={isSubmitting}
-                      className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 disabled:opacity-70"
-                    >
-                      {isSubmitting ? "Verifying..." : "Verify OTP"}
-                    </button>
-                  </>
-                ) : (
-                  <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
-                    <label className="text-sm font-semibold text-orange-900">
-                      New Password
-                    </label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password"
-                      className="w-full border-2 border-orange-200 rounded-xl px-4 py-3"
-                    />
-
-                    <label className="text-sm font-semibold text-orange-900">
-                      Confirm Password
-                    </label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Confirm new password"
-                      className="w-full border-2 border-orange-200 rounded-xl px-4 py-3"
-                    />
-
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 disabled:opacity-70"
-                    >
-                      {isSubmitting ? "Updating..." : "Update Password"}
-                    </button>
-                  </form>
-                )}
               </div>
+            ) : !otpVerified ? (
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
+                    Enter OTP (5 digits)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={5}
+                    value={otp}
+                    onChange={(e) => { setOtp(e.target.value.replace(/\D/g, "")); setResetStatus(""); }}
+                    placeholder="Enter OTP"
+                    style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
+                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 tracking-widest text-center text-lg"
+                  />
+                </div>
+                <button
+                  onClick={handleVerifyOTP}
+                  disabled={isSubmitting}
+                  style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
+                  className="w-full text-white py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition disabled:opacity-70"
+                >
+                  {isSubmitting ? "Verifying..." : "Verify OTP →"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGenerateOTP}
+                  disabled={isSubmitting}
+                  style={{ color: "#c2511f" }}
+                  className="text-sm font-semibold hover:underline text-center"
+                >
+                  Resend OTP
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => { setNewPassword(e.target.value); setResetStatus(""); }}
+                    placeholder="Min 6 characters"
+                    style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
+                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => { setConfirmPassword(e.target.value); setResetStatus(""); }}
+                    placeholder="Repeat password"
+                    style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
+                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)" }}
+                  className="w-full text-white py-3 rounded-xl text-sm font-bold shadow hover:opacity-90 transition disabled:opacity-70"
+                >
+                  {isSubmitting ? "Updating..." : "Update Password →"}
+                </button>
+              </form>
             )}
 
             {resetStatus && (
-              <p className="mt-4 text-sm font-medium text-orange-700">{resetStatus}</p>
+              <p
+                style={{ color: resetStatus.startsWith("✅") ? "#16a34a" : "#ef4444" }}
+                className="mt-4 text-sm font-medium"
+              >
+                {resetStatus}
+              </p>
             )}
           </div>
         </div>
       )}
+<<<<<<< HEAD
 
       <p style={{ color: "#d4a090" }} className="text-xs sm:text-sm text-center pb-6">
         © 2026 DwellAgent
       </p>
       <Footer />
+=======
+>>>>>>> 4cc777a5e1edbc22743d6431326b424d0b1c4726
     </div>
   );
 };
