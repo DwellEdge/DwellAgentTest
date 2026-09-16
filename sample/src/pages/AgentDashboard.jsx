@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Footer from '../components/Footer'
 
 const FACING_OPTIONS = ["North", "South", "East", "West", "North-East", "North-West", "South-East", "South-West"];
 const PROPERTY_TYPE_OPTIONS = ["Apartment", "Villa", "Plot", "Independent House", "Commercial", "Other"];
@@ -480,6 +481,7 @@ export default function AgentDashboard() {
         </div>
       </main>
 
+      <Footer />
       {/* Success Popup */}
       {showSuccess && (
         <div

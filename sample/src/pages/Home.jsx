@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import Footer from '../components/Footer'
 import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -623,6 +624,7 @@ export default function Home() {
           </div>
         </div>
       )}
+      <Footer />
     </div>
   );
 }
