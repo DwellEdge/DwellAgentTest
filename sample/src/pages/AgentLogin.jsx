@@ -1,10 +1,23 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Footer from "../components/Footer";
 
 const sanitizeInput = (val) =>
   typeof val === "string"
     ? val.replace(/(['";\\]|--|\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC|UNION)\b)/gi, "")
     : val;
+
+const safeGetStoredUser = () => {
+  try {
+    const raw = window.localStorage.getItem("dwellagent_user");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (error) {
+    console.warn("Invalid dwellagent_user in localStorage:", error);
+    return null;
+  }
+};
 
 const AgentLogin = () => {
   const navigate = useNavigate();
@@ -63,7 +76,19 @@ const AgentLogin = () => {
       const data = await response.json();
 
       if (data.success) {
+<<<<<<< HEAD
+        setErrorStatus("");
+        const user = data?.agent || data?.user || null;
+        if (user) {
+          try {
+            window.localStorage.setItem("dwellagent_user", JSON.stringify(user));
+          } catch (storageError) {
+            console.warn("Could not save user to localStorage:", storageError);
+          }
+        }
+=======
         sessionStorage.setItem("agentUser", JSON.stringify(data.agent));
+>>>>>>> 4cc777a5e1edbc22743d6431326b424d0b1c4726
         navigate("/agent-dashboard");
       } else {
         setErrorStatus("❌ " + (data.message || "Login failed"));
@@ -494,6 +519,14 @@ const AgentLogin = () => {
           </div>
         </div>
       )}
+<<<<<<< HEAD
+
+      <p style={{ color: "#d4a090" }} className="text-xs sm:text-sm text-center pb-6">
+        © 2026 DwellAgent
+      </p>
+      <Footer />
+=======
+>>>>>>> 4cc777a5e1edbc22743d6431326b424d0b1c4726
     </div>
   );
 };
