@@ -76,7 +76,6 @@ const AgentLogin = () => {
       const data = await response.json();
 
       if (data.success) {
-<<<<<<< HEAD
         setErrorStatus("");
         const user = data?.agent || data?.user || null;
         if (user) {
@@ -86,9 +85,7 @@ const AgentLogin = () => {
             console.warn("Could not save user to localStorage:", storageError);
           }
         }
-=======
         sessionStorage.setItem("agentUser", JSON.stringify(data.agent));
->>>>>>> 4cc777a5e1edbc22743d6431326b424d0b1c4726
         navigate("/agent-dashboard");
       } else {
         setErrorStatus("❌ " + (data.message || "Login failed"));
@@ -369,9 +366,6 @@ const AgentLogin = () => {
         </div>
       </div>
 
-      <p style={{ color: "#d4a090" }} className="text-xs sm:text-sm text-center pb-6">
-        © 2026 DwellAgent
-      </p>
 
       {/* Forgot Password Popup */}
       {showForgotPopup && (
@@ -519,14 +513,11 @@ const AgentLogin = () => {
           </div>
         </div>
       )}
-<<<<<<< HEAD
 
       <p style={{ color: "#d4a090" }} className="text-xs sm:text-sm text-center pb-6">
         © 2026 DwellAgent
       </p>
       <Footer />
-=======
->>>>>>> 4cc777a5e1edbc22743d6431326b424d0b1c4726
     </div>
   );
 };
