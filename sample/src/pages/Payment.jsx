@@ -50,7 +50,7 @@ export default function Payment() {
       // 2. Save transaction — only after messages confirmed sent
       try {
         const agentSelections = agents.map((agent) => ({
-          agentId: agent._id,
+          agentId: agent.agentId || agent._id,
           propertyTypeId: agent.propertyTypeId || "",
           propertyType: agent.propertyTypeName || "",
         }));
@@ -69,7 +69,7 @@ export default function Payment() {
             propertyType: propertyTypeSummary,
             agentSelections,
             noOfAgentsSelected: agents.length,
-            agentIds: agents.map((agent) => agent._id),
+            agentIds: agents.map((agent) => agent.agentId || agent._id),
             mobileNumber: phone,
             amountReceived: agents.length * 30,
           }),

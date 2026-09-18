@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Footer from '../components/Footer'
 
 const FACING_OPTIONS = ["North", "South", "East", "West", "North-East", "North-West", "South-East", "South-West"];
 const PROPERTY_TYPE_OPTIONS = ["Apartment", "Villa", "Plot", "Independent House", "Commercial", "Other"];
@@ -15,6 +14,11 @@ export default function AgentDashboard() {
   const [showForm, setShowForm] = useState(false);
   const [status, setStatus] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Per-property photos and videos
+  const [photos, setPhotos] = useState([]);
+  const [videos, setVideos] = useState([]);
+  const [photoPreviews, setPhotoPreviews] = useState([]);
 
   const [form, setForm] = useState({
     propertyAvailableFor: "Rent",
@@ -39,10 +43,7 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     const stored = sessionStorage.getItem("agentUser");
-    if (!stored) {
-      navigate("/agent-login", { replace: true });
-      return;
-    }
+    if (!stored) { navigate("/agent-login", { replace: true }); return; }
     const agentData = JSON.parse(stored);
     setAgent(agentData);
     fetchProperties(agentData.agentId);
@@ -64,10 +65,58 @@ export default function AgentDashboard() {
   };
 
   const handleAmenityChange = (key, value) => {
-    setForm((prev) => ({
-      ...prev,
-      amenities: { ...prev.amenities, [key]: value },
-    }));
+    setForm((prev) => ({ ...prev, amenities: { ...prev.amenities, [key]: value } }));
+  };
+
+  const handlePhotoChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + photos.length > 5) {
+      setStatus("❌ Maximum 5 photos allowed per property");
+      return;
+    }
+    setPhotos((prev) => [...prev, ...files]);
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setPhotoPreviews((prev) => [...prev, ...previews]);
+    setStatus("");
+  };
+
+  const removePhoto = (index) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleVideoChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + videos.length > 2) {
+      setStatus("❌ Maximum 2 videos allowed per property");
+      return;
+    }
+    setVideos((prev) => [...prev, ...files]);
+    setStatus("");
+  };
+
+  const removeVideo = (index) => {
+    setVideos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const resetForm = () => {
+    setForm({
+      propertyAvailableFor: "Rent",
+      propertyCost: "",
+      propertyAddress: "",
+      area: "",
+      city: "",
+      pinCode: "",
+      facing: "",
+      propertyType: "",
+      carParking: false,
+      twoWheelerParking: false,
+      landmark: "",
+      amenities: { gym: false, pool: false, badminton: false, security: false, others: "" },
+    });
+    setPhotos([]);
+    setVideos([]);
+    setPhotoPreviews([]);
   };
 
   const handleSubmit = async () => {
@@ -83,14 +132,30 @@ export default function AgentDashboard() {
     setStatus("Submitting...");
 
     try {
+      // Use FormData to send files
+      const formData = new FormData();
+      formData.append("agentId", agent.agentId);
+      formData.append("propertyAvailableFor", form.propertyAvailableFor);
+      formData.append("propertyCost", Number(form.propertyCost));
+      formData.append("propertyAddress", form.propertyAddress);
+      formData.append("area", form.area);
+      formData.append("city", form.city);
+      formData.append("pinCode", form.pinCode);
+      formData.append("facing", form.facing);
+      formData.append("propertyType", form.propertyType);
+      formData.append("carParking", form.carParking);
+      formData.append("twoWheelerParking", form.twoWheelerParking);
+      formData.append("landmark", form.landmark);
+      formData.append("amenities", JSON.stringify(form.amenities));
+
+      // Append each photo and video for THIS property
+      photos.forEach((photo) => formData.append("photos", photo));
+      videos.forEach((video) => formData.append("videos", video));
+
       const res = await fetch(`${API_BASE}/api/properties`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId: agent.agentId,
-          ...form,
-          propertyCost: Number(form.propertyCost),
-        }),
+        body: formData,
+        // DO NOT set Content-Type — browser sets it with boundary automatically
       });
 
       const data = await res.json();
@@ -99,27 +164,14 @@ export default function AgentDashboard() {
         setStatus("");
         setShowSuccess(true);
         setShowForm(false);
+        resetForm();
         fetchProperties(agent.agentId);
-        // Reset form
-        setForm({
-          propertyAvailableFor: "Rent",
-          propertyCost: "",
-          propertyAddress: "",
-          area: "",
-          city: "",
-          pinCode: "",
-          facing: "",
-          propertyType: "",
-          carParking: false,
-          twoWheelerParking: false,
-          landmark: "",
-          amenities: { gym: false, pool: false, badminton: false, security: false, others: "" },
-        });
       } else {
         setStatus("❌ " + (data.message || "Failed to add property"));
       }
     } catch (err) {
       setStatus("❌ Server error. Please try again.");
+      console.error(err);
     }
   };
 
@@ -153,7 +205,7 @@ export default function AgentDashboard() {
           DWELLAGENT
         </div>
         <div className="flex items-center gap-3">
-          <span style={{ color: "#a8674a" }} className="text-sm font-medium">
+          <span style={{ color: "#a8674a" }} className="text-sm font-medium hidden sm:block">
             Welcome, {agent.firstName} {agent.lastName}
           </span>
           <button
@@ -186,17 +238,15 @@ export default function AgentDashboard() {
             </button>
           </div>
 
-          {/* Properties list */}
-          {properties.length === 0 && !showForm && (
+          {/* Properties List */}
+          {properties.length === 0 && (
             <div
               style={{ background: "#fff", border: "1px solid #fdd9c8" }}
               className="rounded-3xl p-10 text-center shadow-lg"
             >
               <div className="text-5xl mb-4">🏠</div>
               <h3 style={{ color: "#7c2d12" }} className="text-xl font-extrabold mb-2">No Properties Yet</h3>
-              <p style={{ color: "#a8674a" }} className="text-sm">
-                Click "Add Property" to list your first property.
-              </p>
+              <p style={{ color: "#a8674a" }} className="text-sm">Click "Add Property" to list your first property.</p>
             </div>
           )}
 
@@ -206,59 +256,107 @@ export default function AgentDashboard() {
                 <div
                   key={prop._id}
                   style={{ background: "#fff", border: "1px solid #fdd9c8" }}
-                  className="rounded-2xl p-5 shadow-md flex flex-col gap-2"
+                  className="rounded-2xl overflow-hidden shadow-md"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)", color: "#fff" }}
-                          className="text-xs font-bold px-3 py-1 rounded-full"
-                        >
-                          {prop.propertyAvailableFor}
-                        </span>
-                        {prop.propertyType && (
-                          <span
-                            style={{ background: "#fff8f5", color: "#c2511f", border: "1px solid #fdd9c8" }}
-                            className="text-xs font-semibold px-3 py-1 rounded-full"
-                          >
-                            {prop.propertyType}
-                          </span>
-                        )}
-                      </div>
-                      <p style={{ color: "#7c2d12" }} className="font-bold text-base mt-2">
-                        ₹{prop.propertyCost?.toLocaleString()}
-                      </p>
+                  {/* Property photos */}
+                  {prop.photoUrls && prop.photoUrls.length > 0 ? (
+                    <div className="flex gap-2 p-3 overflow-x-auto">
+                      {prop.photoUrls.map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt={`Photo ${i + 1}`}
+                          className="h-28 w-40 object-cover rounded-xl flex-shrink-0"
+                          style={{ border: "1px solid #fdd9c8" }}
+                        />
+                      ))}
                     </div>
-                    <span style={{ color: "#a8674a" }} className="text-xs">
-                      {daysLeft(prop.expiryDate)} days left
-                    </span>
-                  </div>
-                  <p style={{ color: "#a8674a" }} className="text-sm">📍 {prop.propertyAddress}, {prop.area}, {prop.city} - {prop.pinCode}</p>
-                  {prop.landmark && <p style={{ color: "#a8674a" }} className="text-xs">🗺️ Near {prop.landmark}</p>}
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {prop.carParking && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">🚗 Car Parking</span>}
-                    {prop.twoWheelerParking && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">🛵 2-Wheeler Parking</span>}
-                    {prop.amenities?.gym && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">💪 Gym</span>}
-                    {prop.amenities?.pool && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">🏊 Pool</span>}
-                    {prop.amenities?.badminton && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">🏸 Badminton</span>}
-                    {prop.amenities?.security && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">🔒 Security</span>}
+                  ) : (
+                    <div
+                      style={{ background: "#fff8f5", borderBottom: "1px solid #fdd9c8" }}
+                      className="px-4 py-2 text-xs font-medium"
+                      title="No photos uploaded for this property"
+                    >
+                      <span style={{ color: "#a8674a" }}>📷 No photos uploaded for this property</span>
+                    </div>
+                  )}
+
+                  {/* Videos */}
+                  {prop.videoUrls && prop.videoUrls.length > 0 && (
+                    <div className="flex gap-2 px-3 pb-2 overflow-x-auto">
+                      {prop.videoUrls.map((url, i) => (
+                        <video
+                          key={i}
+                          src={url}
+                          controls
+                          className="h-20 w-36 rounded-xl object-cover flex-shrink-0"
+                          style={{ border: "1px solid #fdd9c8" }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="p-5 flex flex-col gap-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)", color: "#fff" }}
+                            className="text-xs font-bold px-3 py-1 rounded-full"
+                          >
+                            {prop.propertyAvailableFor}
+                          </span>
+                          {prop.propertyType && (
+                            <span
+                              style={{ background: "#fff8f5", color: "#c2511f", border: "1px solid #fdd9c8" }}
+                              className="text-xs font-semibold px-3 py-1 rounded-full"
+                            >
+                              {prop.propertyType}
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ color: "#7c2d12" }} className="font-bold text-base mt-2">
+                          ₹{prop.propertyCost?.toLocaleString()}
+                        </p>
+                      </div>
+                      <span style={{ color: "#a8674a" }} className="text-xs">{daysLeft(prop.expiryDate)} days left</span>
+                    </div>
+
+                    <p style={{ color: "#a8674a" }} className="text-sm">
+                      📍 {prop.propertyAddress}, {prop.area}, {prop.city} - {prop.pinCode}
+                    </p>
+                    {prop.landmark && <p style={{ color: "#a8674a" }} className="text-xs">🗺️ Near {prop.landmark}</p>}
+
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {prop.carParking && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">🚗 Car Parking</span>}
+                      {prop.twoWheelerParking && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">🛵 2-Wheeler</span>}
+                      {prop.amenities?.gym && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">💪 Gym</span>}
+                      {prop.amenities?.pool && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">🏊 Pool</span>}
+                      {prop.amenities?.badminton && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">🏸 Badminton</span>}
+                      {prop.amenities?.security && <span style={{ color: "#c2511f", background: "#fff8f5", border: "1px solid #fdd9c8" }} className="text-xs px-2 py-1 rounded-full">🔒 Security</span>}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Add Property Form */}
+          {/* Add Property Popup */}
           {showForm && (
             <div
-              style={{ background: "#fff", border: "1px solid #fdd9c8" }}
-              className="rounded-3xl p-8 shadow-lg flex flex-col gap-5"
+              className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
+              style={{ background: "rgba(124, 45, 18, 0.35)", backdropFilter: "blur(4px)" }}
+              onClick={() => { setShowForm(false); setStatus(""); resetForm(); }}
             >
+              <div
+                style={{ background: "#fff", border: "1px solid #fdd9c8" }}
+                className="rounded-3xl p-8 shadow-2xl flex flex-col gap-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
               <div className="flex items-center justify-between">
                 <h2 style={{ color: "#7c2d12" }} className="text-xl font-extrabold">Add New Property</h2>
                 <button
-                  onClick={() => { setShowForm(false); setStatus(""); }}
+                  onClick={() => { setShowForm(false); setStatus(""); resetForm(); }}
                   style={{ color: "#a8674a" }}
                   className="text-sm hover:underline"
                 >
@@ -266,7 +364,7 @@ export default function AgentDashboard() {
                 </button>
               </div>
 
-              {/* Property Available For */}
+              {/* Purpose */}
               <div className="flex flex-col gap-1">
                 <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
                   Property Available For *
@@ -274,14 +372,11 @@ export default function AgentDashboard() {
                 <div className="flex gap-3 flex-wrap">
                   {PURPOSE_OPTIONS.map((opt) => (
                     <button
-                      key={opt}
-                      type="button"
+                      key={opt} type="button"
                       onClick={() => handleChange("propertyAvailableFor", opt)}
-                      style={
-                        form.propertyAvailableFor === opt
-                          ? { background: "linear-gradient(135deg, #e8724a, #f59e6c)", color: "#fff" }
-                          : { background: "#fff8f5", color: "#c2511f", border: "1px solid #fdd9c8" }
-                      }
+                      style={form.propertyAvailableFor === opt
+                        ? { background: "linear-gradient(135deg, #e8724a, #f59e6c)", color: "#fff" }
+                        : { background: "#fff8f5", color: "#c2511f", border: "1px solid #fdd9c8" }}
                       className="px-5 py-2 rounded-full text-sm font-bold transition hover:opacity-90"
                     >
                       {opt}
@@ -305,7 +400,7 @@ export default function AgentDashboard() {
                 />
               </div>
 
-              {/* Property Address */}
+              {/* Address */}
               <div className="flex flex-col gap-1">
                 <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
                   Property Address *
@@ -324,50 +419,32 @@ export default function AgentDashboard() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                   <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">Area *</label>
-                  <input
-                    type="text"
-                    value={form.area}
-                    onChange={(e) => handleChange("area", e.target.value)}
-                    placeholder="e.g. Miyapur"
-                    style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
-                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300"
-                  />
+                  <input type="text" value={form.area} onChange={(e) => handleChange("area", e.target.value)}
+                    placeholder="e.g. Miyapur" style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
+                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">City *</label>
-                  <input
-                    type="text"
-                    value={form.city}
-                    onChange={(e) => handleChange("city", e.target.value)}
-                    placeholder="e.g. Hyderabad"
-                    style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
-                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300"
-                  />
+                  <input type="text" value={form.city} onChange={(e) => handleChange("city", e.target.value)}
+                    placeholder="e.g. Hyderabad" style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
+                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300" />
                 </div>
               </div>
 
-              {/* Pin Code + Facing */}
+              {/* Pin + Facing */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                   <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">Pin Code *</label>
-                  <input
-                    type="text"
-                    value={form.pinCode}
+                  <input type="text" value={form.pinCode}
                     onChange={(e) => handleChange("pinCode", e.target.value.replace(/\D/g, ""))}
-                    placeholder="6-digit pin code"
-                    maxLength={6}
-                    style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
-                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300"
-                  />
+                    placeholder="6-digit pin code" maxLength={6} style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
+                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">Facing</label>
-                  <select
-                    value={form.facing}
-                    onChange={(e) => handleChange("facing", e.target.value)}
+                  <select value={form.facing} onChange={(e) => handleChange("facing", e.target.value)}
                     style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
-                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50"
-                  >
+                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50">
                     <option value="">Select facing</option>
                     {FACING_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
                   </select>
@@ -377,13 +454,10 @@ export default function AgentDashboard() {
               {/* Property Type */}
               <div className="flex flex-col gap-1">
                 <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">Property Type</label>
-                <select
-                  value={form.propertyType}
-                  onChange={(e) => handleChange("propertyType", e.target.value)}
+                <select value={form.propertyType} onChange={(e) => handleChange("propertyType", e.target.value)}
                   style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
-                  className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50"
-                >
-                  <option value="">Select property type</option>
+                  className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50">
+                  <option value="">Select type</option>
                   {PROPERTY_TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -393,22 +467,16 @@ export default function AgentDashboard() {
                 <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">Parking</label>
                 <div className="flex gap-6">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.carParking}
+                    <input type="checkbox" checked={form.carParking}
                       onChange={(e) => handleChange("carParking", e.target.checked)}
-                      className="h-4 w-4 accent-[#e8724a]"
-                    />
+                      className="h-4 w-4 accent-[#e8724a]" />
                     <span style={{ color: "#7c2d12" }} className="text-sm font-medium">🚗 Car Parking</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.twoWheelerParking}
+                    <input type="checkbox" checked={form.twoWheelerParking}
                       onChange={(e) => handleChange("twoWheelerParking", e.target.checked)}
-                      className="h-4 w-4 accent-[#e8724a]"
-                    />
-                    <span style={{ color: "#7c2d12" }} className="text-sm font-medium">🛵 Two-Wheeler Parking</span>
+                      className="h-4 w-4 accent-[#e8724a]" />
+                    <span style={{ color: "#7c2d12" }} className="text-sm font-medium">🛵 Two-Wheeler</span>
                   </label>
                 </div>
               </div>
@@ -419,53 +487,139 @@ export default function AgentDashboard() {
                 <div className="flex flex-wrap gap-4">
                   {["gym", "pool", "badminton", "security"].map((key) => (
                     <label key={key} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.amenities[key]}
+                      <input type="checkbox" checked={form.amenities[key]}
                         onChange={(e) => handleAmenityChange(key, e.target.checked)}
-                        className="h-4 w-4 accent-[#e8724a]"
-                      />
+                        className="h-4 w-4 accent-[#e8724a]" />
                       <span style={{ color: "#7c2d12" }} className="text-sm font-medium capitalize">
                         {key === "gym" ? "💪 Gym" : key === "pool" ? "🏊 Pool" : key === "badminton" ? "🏸 Badminton" : "🔒 Security"}
                       </span>
                     </label>
                   ))}
                 </div>
-                <div className="flex flex-col gap-1 mt-1">
-                  <label style={{ color: "#7c2d12" }} className="text-xs font-medium">
-                    Others (space separated)
-                  </label>
-                  <input
-                    type="text"
-                    value={form.amenities.others}
-                    onChange={(e) => handleAmenityChange("others", e.target.value)}
-                    placeholder="e.g. Clubhouse Playground Garden"
-                    style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
-                    className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300"
-                  />
-                </div>
+                <input
+                  type="text" value={form.amenities.others}
+                  onChange={(e) => handleAmenityChange("others", e.target.value)}
+                  placeholder="Other amenities (e.g. Clubhouse Garden)"
+                  style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
+                  className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300 mt-1"
+                />
               </div>
 
               {/* Landmark */}
               <div className="flex flex-col gap-1">
                 <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">Landmark</label>
-                <input
-                  type="text"
-                  value={form.landmark}
-                  onChange={(e) => handleChange("landmark", e.target.value)}
-                  placeholder="e.g. Near Metro Station"
-                  style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
-                  className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300"
-                />
+                <input type="text" value={form.landmark} onChange={(e) => handleChange("landmark", e.target.value)}
+                  placeholder="e.g. Near Metro Station" style={{ borderColor: "#fdd9c8", color: "#7c2d12" }}
+                  className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300" />
+              </div>
+
+              {/* Photos Upload — per property */}
+              <div className="flex flex-col gap-2">
+                <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
+                  Property Photos
+                  <span style={{ color: "#a8674a", fontWeight: "normal", textTransform: "none" }}> (up to 5, JPEG/PNG/WebP — specific to this property)</span>
+                </label>
+
+                {/* Photo previews */}
+                {photoPreviews.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    {photoPreviews.map((preview, i) => (
+                      <div key={i} className="relative">
+                        <img
+                          src={preview}
+                          alt={`Preview ${i + 1}`}
+                          className="w-20 h-20 object-cover rounded-xl"
+                          style={{ border: "2px solid #fdd9c8" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(i)}
+                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {photos.length < 5 && (
+                  <label
+                    style={{ background: "#fff8f5", border: "2px dashed #fdd9c8" }}
+                    className="rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:bg-orange-50 transition"
+                  >
+                    <span className="text-2xl">📷</span>
+                    <div>
+                      <p style={{ color: "#c2511f" }} className="text-sm font-semibold">
+                        {photos.length === 0 ? "Upload photos for this property" : `Add more photos (${photos.length}/5)`}
+                      </p>
+                      <p style={{ color: "#d4a090" }} className="text-xs">JPEG, PNG, WebP accepted</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Videos Upload — per property */}
+              <div className="flex flex-col gap-2">
+                <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
+                  Property Videos
+                  <span style={{ color: "#a8674a", fontWeight: "normal", textTransform: "none" }}> (up to 2, MP4/WebM/MOV — specific to this property)</span>
+                </label>
+
+                {videos.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    {videos.map((v, i) => (
+                      <div
+                        key={i}
+                        style={{ background: "#fff8f5", border: "1px solid #fdd9c8" }}
+                        className="flex items-center justify-between rounded-xl px-4 py-2"
+                      >
+                        <span style={{ color: "#c2511f" }} className="text-sm font-medium">🎥 {v.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeVideo(i)}
+                          className="text-red-500 text-sm hover:text-red-700 font-bold"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {videos.length < 2 && (
+                  <label
+                    style={{ background: "#fff8f5", border: "2px dashed #fdd9c8" }}
+                    className="rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:bg-orange-50 transition"
+                  >
+                    <span className="text-2xl">🎥</span>
+                    <div>
+                      <p style={{ color: "#c2511f" }} className="text-sm font-semibold">
+                        {videos.length === 0 ? "Upload a video for this property" : "Add one more video"}
+                      </p>
+                      <p style={{ color: "#d4a090" }} className="text-xs">MP4, WebM, MOV accepted</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime"
+                      multiple
+                      onChange={handleVideoChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
 
               {status && (
-                <p
-                  style={{ color: status.startsWith("❌") ? "#ef4444" : "#a8674a" }}
-                  className="text-sm font-medium"
-                >
-                  {status}
-                </p>
+                <p style={{ color: status.startsWith("❌") ? "#ef4444" : "#a8674a" }}
+                  className="text-sm font-medium">{status}</p>
               )}
 
               <button
@@ -476,12 +630,12 @@ export default function AgentDashboard() {
               >
                 {status === "Submitting..." ? "Submitting..." : "Submit Property →"}
               </button>
+              </div>
             </div>
           )}
         </div>
       </main>
 
-      <Footer />
       {/* Success Popup */}
       {showSuccess && (
         <div

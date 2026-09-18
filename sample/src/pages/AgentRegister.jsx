@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Footer from "../components/Footer";
 
 // Strip SQL injection patterns from text inputs
 const sanitizeInput = (val) =>
@@ -326,7 +327,7 @@ export default function AgentRegister() {
                   {idDocument ? (
                     <p style={{ color: "#c2511f" }} className="text-sm font-semibold">{idDocument.name}</p>
                   ) : (
-                    <p style={{ color: "#a8674a" }} className="text-sm">No file chosen</p>
+                    <p style={{ color: "#a8674a" }} className="text-sm"></p>
                   )}
                   <p style={{ color: "#d4a090" }} className="text-xs mt-0.5">PDF, JPG, PNG accepted</p>
                 </div>
@@ -460,6 +461,7 @@ export default function AgentRegister() {
           </div>
         </div>
       )}
+      <Footer />
     </div>
   );
 }
