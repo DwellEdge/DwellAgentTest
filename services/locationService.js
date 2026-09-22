@@ -12,6 +12,20 @@ const purposeMap = {
   P03: "Sale",
 };
 
+// Case-insensitive dedupe helper — keeps the first-seen casing for each value
+const dedupeCaseInsensitive = (items) => {
+  const map = new Map();
+  items.forEach((item) => {
+    if (!item) return;
+    const trimmed = String(item).trim();
+    const key = trimmed.toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, trimmed);
+    }
+  });
+  return Array.from(map.values());
+};
+
 const resolvePurpose = async (propertyTypeOrId) => {
   if (!propertyTypeOrId) return null;
 
@@ -56,7 +70,10 @@ const searchLocations = async (query) => {
     },
   }).distinct("city");
 
-  const dbCities = [...new Set([...dbAgentCities, ...dbCustomerCities])];
+  const dbCities = dedupeCaseInsensitive([
+    ...dbAgentCities,
+    ...dbCustomerCities,
+  ]);
 
   if (dbCities.length > 0) {
     return dbCities.map((cityName, index) => ({
@@ -120,7 +137,9 @@ const getAreasByCity = async (city) => {
     },
   }).distinct("area");
 
-  return [...new Set([...areas, ...customerAreas])].sort();
+  return dedupeCaseInsensitive([...areas, ...customerAreas]).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
 };
 
 const getCustomersByArea = async (city, area, propertyTypeOrId) => {
@@ -159,8 +178,8 @@ const getCustomersByArea = async (city, area, propertyTypeOrId) => {
     : [];
 
   const previousTransactions = await TransactionHistory.find({
-    city,
-    area: areaName,
+    city: { $regex: `^${city}$`, $options: "i" },
+    area: { $regex: `^${areaName}$`, $options: "i" },
     ...(propertyTypeOrId ? { propertyType: propertyTypeOrId } : {}),
   }).lean();
 

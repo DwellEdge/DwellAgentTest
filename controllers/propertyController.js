@@ -4,6 +4,7 @@ const client = require("../services/twilioService");
 
 const purposeMap = { P01: "Rent", P02: "Lease", P03: "Sale" };
 const API_BASE = process.env.APP_URL || "http://localhost:5002";
+const VALID_BHK = ["1BHK", "2BHK", "3BHK", "4BHK", "5BHK"];
 
 const buildPhotoUrls = (photos) =>
   (photos || []).map((f) => `${API_BASE}/uploads/${f}`);
@@ -15,9 +16,28 @@ const addProperty = async (req, res) => {
   try {
     const {
       agentId, propertyAvailableFor, propertyCost, propertyAddress,
-      area, city, pinCode, facing, propertyType, carParking,
+      area, city, pinCode, facing, propertyType, bhk, carParking,
       twoWheelerParking, landmark,
     } = req.body;
+
+    // Photos and videos uploaded via multer
+    const photos = (req.files?.photos || []).map((f) => f.filename);
+    const videos = (req.files?.videos || []).map((f) => f.filename);
+
+    // --- Server-side validation (client-side checks can be bypassed) ---
+    if (photos.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one property photo is required.",
+      });
+    }
+
+    if (!bhk || !VALID_BHK.includes(bhk)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select a valid BHK (1BHK–5BHK).",
+      });
+    }
 
     // Parse amenities — sent as JSON string from FormData
     let amenities = {};
@@ -27,14 +47,11 @@ const addProperty = async (req, res) => {
       amenities = {};
     }
 
-    // Photos and videos uploaded via multer
-    const photos = (req.files?.photos || []).map((f) => f.filename);
-    const videos = (req.files?.videos || []).map((f) => f.filename);
-
     const property = await PropertyDetails.create({
       agentId, propertyAvailableFor,
       propertyCost: Number(propertyCost),
       propertyAddress, area, city, pinCode, facing, propertyType,
+      bhk,
       carParking: carParking === "true" || carParking === true,
       twoWheelerParking: twoWheelerParking === "true" || twoWheelerParking === true,
       amenities, landmark: landmark || "",
@@ -54,6 +71,7 @@ const addProperty = async (req, res) => {
           `Hi ${agent.firstName}, your property has been successfully registered on DwellAgent!\n\n` +
           `Property Details:\n` +
           `Available For: ${propertyAvailableFor}\n` +
+          `BHK: ${bhk}\n` +
           `Cost: Rs.${Number(propertyCost).toLocaleString()}\n` +
           `Address: ${propertyAddress}, ${area}, ${city} - ${pinCode}\n` +
           `Photos uploaded: ${photos.length}\n` +
@@ -105,6 +123,7 @@ const searchProperties = async (req, res) => {
     const propertyTypeId = req.query.propertyTypeId?.trim();
     const minBudget = req.query.minBudget ? Number(req.query.minBudget) : null;
     const maxBudget = req.query.maxBudget ? Number(req.query.maxBudget) : null;
+    const bhk = req.query.bhk?.trim();
 
     if (!city || !area) return res.json([]);
 
@@ -119,6 +138,10 @@ const searchProperties = async (req, res) => {
 
     if (purpose) {
       filter.propertyAvailableFor = purpose;
+    }
+
+    if (bhk && VALID_BHK.includes(bhk)) {
+      filter.bhk = bhk;
     }
 
     if (minBudget !== null || maxBudget !== null) {

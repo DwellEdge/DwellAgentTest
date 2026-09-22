@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 const FACING_OPTIONS = ["North", "South", "East", "West", "North-East", "North-West", "South-East", "South-West"];
 const PROPERTY_TYPE_OPTIONS = ["Apartment", "Villa", "Plot", "Independent House", "Commercial", "Other"];
 const PURPOSE_OPTIONS = ["Rent", "Lease", "Sale"];
+const BHK_OPTIONS = ["1BHK", "2BHK", "3BHK", "4BHK", "5BHK"];
 
 export default function AgentDashboard() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function AgentDashboard() {
     pinCode: "",
     facing: "",
     propertyType: "",
+    bhk: "",
     carParking: false,
     twoWheelerParking: false,
     landmark: "",
@@ -109,6 +111,7 @@ export default function AgentDashboard() {
       pinCode: "",
       facing: "",
       propertyType: "",
+      bhk: "",
       carParking: false,
       twoWheelerParking: false,
       landmark: "",
@@ -120,7 +123,7 @@ export default function AgentDashboard() {
   };
 
   const handleSubmit = async () => {
-    const { propertyAvailableFor, propertyCost, propertyAddress, area, city, pinCode } = form;
+    const { propertyAvailableFor, propertyCost, propertyAddress, area, city, pinCode, bhk } = form;
 
     if (!propertyAvailableFor) { setStatus("❌ Please select purpose"); return; }
     if (!propertyCost || isNaN(propertyCost) || Number(propertyCost) <= 0) { setStatus("❌ Please enter a valid property cost"); return; }
@@ -128,6 +131,8 @@ export default function AgentDashboard() {
     if (!area.trim()) { setStatus("❌ Please enter area"); return; }
     if (!city.trim()) { setStatus("❌ Please enter city"); return; }
     if (!/^\d{6}$/.test(pinCode.trim())) { setStatus("❌ Please enter a valid 6-digit pin code"); return; }
+    if (!bhk) { setStatus("❌ Please select BHK"); return; }
+    if (photos.length === 0) { setStatus("❌ Please upload at least 1 photo of the property"); return; }
 
     setStatus("Submitting...");
 
@@ -143,6 +148,7 @@ export default function AgentDashboard() {
       formData.append("pinCode", form.pinCode);
       formData.append("facing", form.facing);
       formData.append("propertyType", form.propertyType);
+      formData.append("bhk", form.bhk);
       formData.append("carParking", form.carParking);
       formData.append("twoWheelerParking", form.twoWheelerParking);
       formData.append("landmark", form.landmark);
@@ -299,7 +305,7 @@ export default function AgentDashboard() {
                   <div className="p-5 flex flex-col gap-2">
                     <div className="flex items-start justify-between">
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span
                             style={{ background: "linear-gradient(135deg, #e8724a, #f59e6c)", color: "#fff" }}
                             className="text-xs font-bold px-3 py-1 rounded-full"
@@ -314,6 +320,14 @@ export default function AgentDashboard() {
                               {prop.propertyType}
                             </span>
                           )}
+                          {prop.bhk && (
+                            <span
+                              style={{ background: "#fff8f5", color: "#c2511f", border: "1px solid #fdd9c8" }}
+                              className="text-xs font-semibold px-3 py-1 rounded-full"
+                            >
+                              🛏️ {prop.bhk}
+                            </span>
+                          )}
                         </div>
                         <p style={{ color: "#7c2d12" }} className="font-bold text-base mt-2">
                           ₹{prop.propertyCost?.toLocaleString()}
@@ -321,7 +335,6 @@ export default function AgentDashboard() {
                       </div>
                       <span style={{ color: "#a8674a" }} className="text-xs">{daysLeft(prop.expiryDate)} days left</span>
                     </div>
-
                     <p style={{ color: "#a8674a" }} className="text-sm">
                       📍 {prop.propertyAddress}, {prop.area}, {prop.city} - {prop.pinCode}
                     </p>
@@ -380,6 +393,27 @@ export default function AgentDashboard() {
                       className="px-5 py-2 rounded-full text-sm font-bold transition hover:opacity-90"
                     >
                       {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* BHK */}
+              <div className="flex flex-col gap-1">
+                <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
+                  BHK *
+                </label>
+                <div className="flex gap-3 flex-wrap">
+                  {BHK_OPTIONS.map((opt) => (
+                    <button
+                      key={opt} type="button"
+                      onClick={() => handleChange("bhk", opt)}
+                      style={form.bhk === opt
+                        ? { background: "linear-gradient(135deg, #e8724a, #f59e6c)", color: "#fff" }
+                        : { background: "#fff8f5", color: "#c2511f", border: "1px solid #fdd9c8" }}
+                      className="px-5 py-2 rounded-full text-sm font-bold transition hover:opacity-90"
+                    >
+                      🛏️ {opt}
                     </button>
                   ))}
                 </div>
@@ -513,11 +547,11 @@ export default function AgentDashboard() {
                   className="border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-300 bg-orange-50 placeholder-orange-300" />
               </div>
 
-              {/* Photos Upload — per property */}
+              {/* Photos Upload — per property — REQUIRED */}
               <div className="flex flex-col gap-2">
                 <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
-                  Property Photos
-                  <span style={{ color: "#a8674a", fontWeight: "normal", textTransform: "none" }}> (up to 5, JPEG/PNG/WebP — specific to this property)</span>
+                  Property Photos *
+                  <span style={{ color: "#a8674a", fontWeight: "normal", textTransform: "none" }}> (at least 1, up to 5, JPEG/PNG/WebP — specific to this property)</span>
                 </label>
 
                 {/* Photo previews */}
@@ -541,6 +575,12 @@ export default function AgentDashboard() {
                       </div>
                     ))}
                   </div>
+                )}
+
+                {photos.length === 0 && (
+                  <p style={{ color: "#ef4444" }} className="text-xs font-medium">
+                    At least one photo is required to list a property.
+                  </p>
                 )}
 
                 {photos.length < 5 && (

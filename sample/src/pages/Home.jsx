@@ -94,7 +94,6 @@ export default function Home() {
       setLoading(true);
       setSearchPerformed(true);
       setSelectedAgents([]);
-
       const responses = await Promise.all(
         selectedPropertyTypeIds.map((ptId) =>
           axios.get(`${API_BASE}/api/agents`, {
@@ -362,7 +361,6 @@ export default function Home() {
                 </div>
               )}
             </div>
-
             {city.length > 1 && citySuggestions.length === 0 && !selectedCity && (
               <p className="text-sm mt-1 ml-2" style={{ color: "#a8674a" }}>
                 No cities found for "<span className="font-semibold">{city}</span>". Try a different name.
@@ -406,7 +404,6 @@ export default function Home() {
               <label style={{ color: "#7c2d12" }} className="text-xs font-bold uppercase tracking-wide">
                 Budget Range
               </label>
-
               {/* Preset buttons */}
               <div className="flex gap-2 flex-wrap">
                 {BUDGET_PRESETS.map((preset) => (
@@ -612,7 +609,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* Req 7 — Properties Results with per-property photos and videos */}
+          {/* Req 7 — Properties Results with per-property photos, videos and map */}
           {viewMode === "properties" && propertyResults.length > 0 && (
             <div className="mt-6 flex flex-col gap-5">
               <div style={{ color: "#7c2d12" }} className="font-bold text-sm">
@@ -747,12 +744,38 @@ export default function Home() {
                               {prop.propertyType}
                             </span>
                           )}
+                          {prop.bhk && (
+                            <span
+                              style={{ background: "#fff8f5", color: "#c2511f", border: "1px solid #fdd9c8" }}
+                              className="text-xs font-semibold px-3 py-1 rounded-full"
+                            >
+                              🛏️ {prop.bhk}
+                            </span>
+                          )}
                         </div>
                         <p style={{ color: "#7c2d12" }} className="font-bold text-sm">
                           {prop.agent
                             ? `${prop.agent.firstName || ""} ${prop.agent.lastName || ""}`.trim()
                             : "Agent"}
                         </p>
+
+                        {/* Map — disabled for now, will be enabled once location data is wired up */}
+                        <button
+                          type="button"
+                          disabled
+                          title="Map view coming soon"
+                          aria-disabled="true"
+                          onClick={(e) => e.preventDefault()}
+                          style={{
+                            background: "#f4f4f4",
+                            color: "#9ca3af",
+                            border: "1px solid #e5e7eb",
+                            cursor: "not-allowed",
+                          }}
+                          className="mt-1 flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold w-full"
+                        >
+                          📍 View on Map <span className="text-[10px] font-semibold">(Coming Soon)</span>
+                        </button>
                       </div>
                     </div>
                   );

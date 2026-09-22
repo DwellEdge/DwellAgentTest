@@ -20,6 +20,12 @@ const propertyDetailsSchema = new mongoose.Schema({
     type: String,
     enum: ["Apartment", "Villa", "Plot", "Independent House", "Commercial", "Other"],
   },
+
+  bhk: {
+  type: String,
+  enum: ["1BHK", "2BHK", "3BHK", "4BHK", "5BHK"],
+  required: true,
+  },
   carParking: { type: Boolean, default: false },
   twoWheelerParking: { type: Boolean, default: false },
   amenities: {
