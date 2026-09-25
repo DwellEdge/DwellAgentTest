@@ -1,18 +1,19 @@
 const Agent = require("../models/Agent");
+const PropertyDetails = require("../models/PropertyDetails");
+
+// P01=Rent, P02=Lease, P03=Sale
+const purposeMap = {
+  P01: "Rent",
+  P02: "Lease",
+  P03: "Sale",
+};
 
 const createAgent = async (req, res) => {
   try {
     const agent = await Agent.create(req.body);
-
-    res.status(201).json({
-      success: true,
-      data: agent,
-    });
+    res.status(201).json({ success: true, data: agent });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -21,37 +22,66 @@ const getAgents = async (req, res) => {
     const city = req.query.city?.trim();
     const area = req.query.area?.trim();
     const propertyTypeId = req.query.propertyTypeId?.trim();
+    const minBudget = req.query.minBudget ? Number(req.query.minBudget) : null;
+    const maxBudget = req.query.maxBudget ? Number(req.query.maxBudget) : null;
 
-    const query = {};
-
-    if (city) query.city = { $regex: `^${city}$`, $options: "i" };
-    if (area) query.area = { $regex: `^${area}$`, $options: "i" };
-
-    let agents = await Agent.find(query);
-
-    // If propertyTypeId filter applied, show only that count
-    if (propertyTypeId) {
-      agents = agents
-        .map(agent => {
-          const matchedType = agent.propertyTypes.find(
-            pt => pt.propertyTypeId === propertyTypeId
-          );
-          return {
-            ...agent.toObject(),
-            filteredCount: matchedType ? matchedType.count : 0,
-            filteredPropertyType: matchedType ? matchedType.propertyType : null
-          };
-        })
-        .filter(agent => agent.filteredCount > 0); // hide agents with 0
+    if (!city || !area || !propertyTypeId) {
+      return res.json([]);
     }
 
-    res.json(agents);
+    const purpose = purposeMap[propertyTypeId];
+    if (!purpose) {
+      return res.json([]);
+    }
+
+    const filter = {
+      city: { $regex: `^${city}$`, $options: "i" },
+      area: { $regex: `^${area}$`, $options: "i" },
+      propertyAvailableFor: purpose,
+      expiryDate: { $gt: new Date() },
+    };
+
+    if (minBudget !== null || maxBudget !== null) {
+      filter.propertyCost = {};
+      if (minBudget !== null && !Number.isNaN(minBudget)) {
+        filter.propertyCost.$gte = minBudget;
+      }
+      if (maxBudget !== null && !Number.isNaN(maxBudget)) {
+        filter.propertyCost.$lte = maxBudget;
+      }
+    }
+
+    const properties = await PropertyDetails.find(filter).lean();
+
+    if (properties.length === 0) {
+      return res.json([]);
+    }
+
+    const agentCountMap = {};
+    properties.forEach((prop) => {
+      const id = String(prop.agentId || "").trim();
+      if (!id) return;
+      agentCountMap[id] = (agentCountMap[id] || 0) + 1;
+    });
+
+    const agentIds = Object.keys(agentCountMap);
+    const agents = await Agent.find({ agentId: { $in: agentIds } }).lean();
+
+    const result = agents.map((agent) => ({
+      _id: agent._id,
+      agentId: agent.agentId,
+      firstName: agent.firstName,
+      lastName: agent.lastName,
+      area,
+      city,
+      filteredCount: agentCountMap[agent.agentId] || 0,
+      filteredPropertyType: purpose,
+    }));
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-module.exports = {
-  getAgents,
-  createAgent,
-};
+module.exports = { getAgents, createAgent };

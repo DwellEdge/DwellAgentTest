@@ -4,38 +4,17 @@ import { useNavigate, useLocation } from "react-router-dom";
 export default function PhoneForm() {
   const navigate = useNavigate();
   const location = useLocation();
+
   const agents = location.state?.agents || [];
+  const city = location.state?.city || "";
+  const area = location.state?.area || "";
+  const propertyTypeId = location.state?.propertyTypeId || "";
+  const propertyTypeName =
+    location.state?.propertyTypeName || agents[0]?.propertyTypeName || "";
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState("");
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-
-  const API_BASE =
-    import.meta.env.VITE_API_URL ||
-    "https://dwellagenttest-backend.onrender.com";
-
-  const city = location.state?.city || "";
-  const area = location.state?.area || "";
-  const propertyTypeId =
-    location.state?.propertyTypeId || "";
-
-  const propertyTypeName =
-    location.state?.propertyTypeName || "";
-
-  const customers =
-    location.state?.customers || [];
-
-  const selectedCustomers =
-    location.state?.selectedCustomers || [];
-
-  const selectedCustomer =
-    customers.find(
-      customer =>
-        selectedCustomers.includes(
-          customer._id
-        )
-    );
 
   const handleSubmit = () => {
     if (!name.trim()) {
