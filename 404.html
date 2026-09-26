@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redirecting...</title>
+    <script>
+      (() => {
+        const repoUrl = '/DwellAgentTest';
+        const redirectPath = sessionStorage.getItem('redirectPath');
+        const currentPath = window.location.pathname;
+
+        if (redirectPath) {
+          sessionStorage.removeItem('redirectPath');
+          window.location.replace(repoUrl + redirectPath);
+          return;
+        }
+
+        const path = currentPath.replace(/^\/DwellAgentTest/, '');
+        const safePath = path && path !== '/' ? path : '/home';
+
+        sessionStorage.setItem('redirectPath', safePath);
+        window.location.replace(repoUrl + '#/' + safePath.replace(/^\//, ''));
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>
