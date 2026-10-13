@@ -11,7 +11,7 @@ const transactionHistorySchema = new mongoose.Schema({
 
   area: String,
 
- 
+
 
   noOfAgentsSelected: Number,
 
