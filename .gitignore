@@ -1,5 +1,30 @@
-node_modules/
+# Environment files
 .env
-dist/
-build/
-.vscode/
+.env.*
+!sample/.env.example
+sample/.env
+
+# Node dependencies
+node_modules/
+sample/node_modules/
+
+# Build outputs
+sample/dist/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+
+# Local environment secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Node dependencies
+node_modules/
+**/node_modules/
+
+# Uploaded media and local uploads
+uploads/
+sample/uploads/
