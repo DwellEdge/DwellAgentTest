@@ -35,21 +35,13 @@ const videosDir = path.join(uploadsDir, "videos");
 if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
 if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
 
-const defaultAllowedOrigins = [
+const allowedOrigins = [
   "http://localhost:5178",
   "http://localhost:5173",
   "https://dwelledge.github.io",
   "https://dwelledge.github.io/DwellAgentTest",
-  "https://dwell-agent-vercel.vercel.app",
-  "https://dwellagenttest-backend-gd5x.onrender.com",
+  "https://dwell-agent-vercel.vercel.app"
 ];
-
-const configuredOrigins = (process.env.CORS_ORIGINS || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...configuredOrigins])];
 
 app.use(cors({
   origin: (origin, callback) => {

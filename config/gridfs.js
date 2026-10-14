@@ -31,7 +31,7 @@ const getBaseUrlFromRequest = (req) => {
     forwardedHost?.split(",")[0].trim() ||
     req?.get?.("host") ||
     process.env.APP_URL ||
-    "dwellagenttest-backend-gd5x.onrender.com";
+    "localhost:5002";
 
   const cleanHost = host.replace(/^https?:\/\//i, "").replace(/\/$/, "");
   return `${protocol}://${cleanHost}`;
