@@ -91,7 +91,7 @@ const getGeoapifyCitySuggestions = async (query) => {
         filter: "countrycode:in",
         apiKey: GEOAPIFY_API_KEY,
       },
-      timeout: 3500,
+      timeout: 1500,
     });
 
     const cityMap = new Map();
