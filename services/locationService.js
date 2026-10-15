@@ -8,6 +8,11 @@ const PropertyType = require("../models/PropertyType");
 const GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY;
 const GEOAPIFY_AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
 
+// Cache city suggestions for 10 minutes.
+const CITY_CACHE_TTL = 10 * 60 * 1000;
+const citySuggestionsCache = new Map();
+const MAX_CITY_CACHE_ENTRIES = 200;
+
 // P01=Rent, P02=Lease, P03=Sale (UI label may be "Purchase")
 const purposeMap = {
   P01: "Rent",
@@ -86,7 +91,7 @@ const getGeoapifyCitySuggestions = async (query) => {
         filter: "countrycode:in",
         apiKey: GEOAPIFY_API_KEY,
       },
-      timeout: 10000,
+      timeout: 3500,
     });
 
     const cityMap = new Map();
@@ -150,19 +155,35 @@ const resolvePurpose = async (propertyTypeOrId) => {
 };
 
 const searchLocations = async (query) => {
-  const dbAgentCities = await PropertyDetails.find({
-    city: {
-      $regex: query,
-      $options: "i",
-    },
-  }).distinct("city");
+  const normalizedQuery = String(query || "").trim();
+  if (normalizedQuery.length < 2) return [];
 
-  const dbCustomerCities = await Customer.find({
-    city: {
-      $regex: query,
-      $options: "i",
-    },
-  }).distinct("city");
+  const cacheKey = normalizedQuery.toLowerCase();
+  const cached = citySuggestionsCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < CITY_CACHE_TTL) {
+    return cached.data;
+  }
+
+  // Escape special characters so user input is treated as text.
+  const escapedQuery = normalizedQuery.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
+
+  // Run both database searches and Geoapify concurrently.
+  const [dbAgentCities, dbCustomerCities, geoapifyCities] =
+    await Promise.all([
+      PropertyDetails.find({
+        city: { $regex: escapedQuery, $options: "i" },
+      }).distinct("city"),
+
+      Customer.find({
+        city: { $regex: escapedQuery, $options: "i" },
+      }).distinct("city"),
+
+      getGeoapifyCitySuggestions(normalizedQuery),
+    ]);
 
   const dbCities = dedupeCaseInsensitive([
     ...dbAgentCities,
@@ -171,16 +192,41 @@ const searchLocations = async (query) => {
 
   const cityMap = new Map();
 
-  [...dbCities, ...(await getGeoapifyCitySuggestions(query))].forEach((item) => {
-    const rawDisplayName = item.displayName || item.display_name || item.city_name || item.city || item.name || item;
-    const cityName = item.city || item.city_name || normalizeCityName(rawDisplayName);
+  [...dbCities, ...geoapifyCities].forEach((item) => {
+    const rawDisplayName =
+      item.displayName ||
+      item.display_name ||
+      item.city_name ||
+      item.city ||
+      item.name ||
+      item;
+
+    const cityName =
+      item.city ||
+      item.city_name ||
+      normalizeCityName(rawDisplayName);
+
     const stateName = item.state || item.state_name || "";
     const countryName = item.country || item.country_name || "India";
-    const displayName = item.displayName || item.display_name || (cityName ? buildDisplayNameFromParts(cityName, stateName, "", countryName) : cityName);
+
+    const displayName =
+      item.displayName ||
+      item.display_name ||
+      (cityName
+        ? buildDisplayNameFromParts(
+            cityName,
+            stateName,
+            "",
+            countryName
+          )
+        : cityName);
 
     if (!cityName) return;
-    if (!cityMap.has(cityName.toLowerCase())) {
-      cityMap.set(cityName.toLowerCase(), {
+
+    const key = cityName.toLowerCase();
+
+    if (!cityMap.has(key)) {
+      cityMap.set(key, {
         displayName,
         display_name: displayName,
         city: cityName,
@@ -199,7 +245,24 @@ const searchLocations = async (query) => {
     }
   });
 
-  return Array.from(cityMap.values()).slice(0, 8);
+  const results = Array.from(cityMap.values()).slice(0, 8);
+
+  // Cache non-empty results and limit memory usage.
+  if (results.length > 0) {
+    if (citySuggestionsCache.size >= MAX_CITY_CACHE_ENTRIES) {
+      const oldestKey = citySuggestionsCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        citySuggestionsCache.delete(oldestKey);
+      }
+    }
+
+    citySuggestionsCache.set(cacheKey, {
+      timestamp: Date.now(),
+      data: results,
+    });
+  }
+
+  return results;
 };
 
 const getAreasByCity = async (city) => {
